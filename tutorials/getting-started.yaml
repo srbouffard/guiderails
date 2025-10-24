@@ -1,0 +1,17 @@
+title: Getting Started with guiderails
+description: A sample tutorial demonstrating the basics of guiderails.
+steps:
+- name: Check Python version
+  description: Verify that Python 3.12+ is installed.
+  command: python --version
+  expected: Python 3.12 or higher
+- name: Create a hello world script
+  description: Create a simple Python script that prints "Hello, guiderails!"
+  command: echo "print('Hello, guiderails!')" > hello.py
+- name: Run the script
+  description: Execute the hello world script.
+  command: python hello.py
+  expected: Hello, guiderails!
+- name: Clean up
+  description: Remove the temporary script.
+  command: rm hello.py

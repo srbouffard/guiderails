@@ -1,0 +1,28 @@
+name: {{ workflow_name }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-tutorial:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install guiderails
+        run: |
+          pip install -e .
+      
+      - name: Execute tutorial
+        run: |
+          guiderun exec {{ tutorial_path }} --ci

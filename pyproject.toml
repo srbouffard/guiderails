@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guiderails"
+version = "0.1.0"
+description = "Write. Generate. Run. Create readable tutorials from YAML and validate them in CI."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jinja2>=3.1.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+guiderun = "guiderails.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

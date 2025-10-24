@@ -1,0 +1,31 @@
+# {{ title }}
+
+{{ description }}
+
+{% if steps %}
+## Steps
+
+{% for step in steps %}
+### Step {{ loop.index }}: {{ step.name }}
+
+{{ step.description }}
+
+{% if step.command %}
+```bash
+{{ step.command }}
+```
+{% endif %}
+
+{% if step.expected %}
+**Expected output:**
+```
+{{ step.expected }}
+```
+{% endif %}
+
+{% endfor %}
+{% endif %}
+
+---
+
+*Generated with [guiderails](https://github.com/srbouffard/guiderails)*

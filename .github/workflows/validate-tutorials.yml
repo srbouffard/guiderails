@@ -1,0 +1,38 @@
+name: Validate Tutorials
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-tutorials:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install guiderails
+        run: |
+          pip install -e .
+      
+      - name: Validate getting-started tutorial
+        run: |
+          guiderun exec tutorials/getting-started.yaml --ci
+      
+      - name: Test render command
+        run: |
+          guiderun render tutorials/getting-started.yaml -o /tmp/getting-started.md
+          test -f /tmp/getting-started.md
+      
+      - name: Test workflow generation
+        run: |
+          guiderun workflow tutorials/getting-started.yaml -o /tmp/workflow.yml
+          test -f /tmp/workflow.yml
