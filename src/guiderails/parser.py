@@ -32,6 +32,7 @@ class Step:
     step_id: Optional[str] = None
     code_blocks: List[CodeBlock] = field(default_factory=list)
     line_number: int = 0
+    content_parts: List[Any] = field(default_factory=list)  # Ordered list of strings and CodeBlocks
 
 
 @dataclass
@@ -106,12 +107,19 @@ class MarkdownParser:
         code_block_attrs = {}
         code_block_lang = "bash"
         code_block_start_line = 0
+        current_content_buffer = []  # Buffer for content before next code block
 
         for line_num, line in enumerate(lines, start=1):
             # Check for code block start/end
             if line.strip().startswith("```"):
                 if not in_code_block:
-                    # Starting a code block
+                    # Starting a code block - flush content buffer first
+                    if current_step and current_content_buffer:
+                        content_text = "\n".join(current_content_buffer)
+                        if content_text.strip():
+                            current_step.content_parts.append(content_text)
+                        current_content_buffer = []
+                    
                     in_code_block = True
                     code_block_content = []
                     code_block_start_line = line_num
@@ -144,6 +152,7 @@ class MarkdownParser:
 
                         if current_step:
                             current_step.code_blocks.append(code_block)
+                            current_step.content_parts.append(code_block)
 
                     code_block_content = []
                     code_block_attrs = {}
@@ -175,8 +184,13 @@ class MarkdownParser:
 
                 # If this heading has .gr-step, start a new step
                 if "gr-step" in attrs.get("classes", []):
-                    # Save previous step
+                    # Save previous step with any remaining content
                     if current_step:
+                        if current_content_buffer:
+                            content_text = "\n".join(current_content_buffer)
+                            if content_text.strip():
+                                current_step.content_parts.append(content_text)
+                            current_content_buffer = []
                         tutorial.steps.append(current_step)
 
                     current_step = Step(
@@ -191,9 +205,14 @@ class MarkdownParser:
             elif current_step:
                 # Add content to current step
                 current_step.content += line + "\n"
+                current_content_buffer.append(line)
 
-        # Add final step
+        # Add final step with any remaining content
         if current_step:
+            if current_content_buffer:
+                content_text = "\n".join(current_content_buffer)
+                if content_text.strip():
+                    current_step.content_parts.append(content_text)
             tutorial.steps.append(current_step)
 
         if not tutorial.title:

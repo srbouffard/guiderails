@@ -107,6 +107,9 @@ class GuideRunner:
 
         # In guided mode, ask for confirmation after displaying content
         if self.guided:
+            # Add clear separation before prompt
+            console.print()
+            console.print("┈" * 80)
             console.print()
             num_blocks = len(step.code_blocks)
             prompt = f"[cyan]▶ Execute the above {num_blocks} code block(s)?[/cyan]"
@@ -116,6 +119,8 @@ class GuideRunner:
                 return True
 
             # Add visual separator before execution
+            console.print()
+            console.print("┈" * 80)
             console.print()
             console.print("[bold cyan]═══ Execution Results ═══[/bold cyan]")
             console.print()
@@ -140,19 +145,26 @@ class GuideRunner:
         Args:
             step: The step to display
         """
-        # Parse the content to find where code blocks should appear
-        content_lines = step.content.strip().split('\n') if step.content.strip() else []
-        
-        # Display all content as markdown (which naturally includes code block positions)
-        # The content already has the structure, we just need to enhance the code blocks
-        if content_lines:
+        # Use content_parts if available for proper interleaving
+        if step.content_parts:
+            for part in step.content_parts:
+                if isinstance(part, CodeBlock):
+                    # This is a code block - display it with formatting in guided mode
+                    if self.guided:
+                        block_idx = step.code_blocks.index(part) + 1
+                        self._display_code_block_inline(block_idx, part)
+                elif isinstance(part, str) and part.strip():
+                    # This is content text - display as markdown
+                    console.print(Markdown(part.strip()))
+                    console.print()
+        elif step.content.strip():
+            # Fallback to old behavior if content_parts not available
             console.print(Markdown(step.content.strip()))
             console.print()
-        
-        # Now display the actual executable code blocks with their parameters
-        if step.code_blocks and self.guided:
-            for block_idx, code_block in enumerate(step.code_blocks, start=1):
-                self._display_code_block_inline(block_idx, code_block)
+            
+            if step.code_blocks and self.guided:
+                for block_idx, code_block in enumerate(step.code_blocks, start=1):
+                    self._display_code_block_inline(block_idx, code_block)
 
     def _display_code_block_inline(self, block_num: int, code_block: CodeBlock):
         """Display a code block inline with clear formatting for guided mode.
