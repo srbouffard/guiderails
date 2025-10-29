@@ -86,31 +86,48 @@ class GuideRunner:
         Returns:
             True if step passed, False otherwise
         """
-        # Display step header
+        # Display step header with clear separation
+        console.print()
+        console.print("─" * 80)
         console.print()
         step_header = f"Step {step_num}/{len(self.tutorial.steps)}: {step.title}"
-        console.print(f"[bold blue]{step_header}[/bold blue]")
+        console.print(Panel.fit(f"[bold blue]{step_header}[/bold blue]", border_style="blue"))
 
         if step.step_id:
             console.print(f"[dim]ID: {step.step_id}[/dim]")
+            console.print()
 
         # Display step content (explanation)
         if step.content.strip():
-            console.print()
             console.print(Markdown(step.content.strip()))
+            console.print()
 
         # Check if step has executable code blocks
         if not step.code_blocks:
             console.print("[dim]No executable code blocks in this step[/dim]")
             return True
 
-        # In guided mode, ask user to proceed
+        # In guided mode, display code blocks BEFORE asking to execute
         if self.guided:
+            # Show all code blocks that will be executed
+            num_blocks = len(step.code_blocks)
+            console.print(f"[bold cyan]Code to execute ({num_blocks} block(s)):[/bold cyan]")
             console.print()
-            prompt = f"[cyan]Execute {len(step.code_blocks)} code block(s)?[/cyan]"
+            for block_idx, code_block in enumerate(step.code_blocks, start=1):
+                self._display_code_block(block_idx, code_block)
+
+            # Now ask for confirmation
+            console.print()
+            prompt = f"[cyan]▶ Execute the above {len(step.code_blocks)} code block(s)?[/cyan]"
             if not Confirm.ask(prompt, default=True):
-                console.print("[yellow]Skipped by user[/yellow]")
+                console.print("[yellow]⊗ Skipped by user[/yellow]")
+                console.print()
                 return True
+
+            # Add visual separator before execution
+            console.print()
+            console.print("[bold cyan]═══ Execution Results ═══[/bold cyan]")
+            console.print()
 
         # Execute code blocks
         step_passed = True
@@ -123,6 +140,29 @@ class GuideRunner:
 
         return step_passed
 
+    def _display_code_block(self, block_num: int, code_block: CodeBlock):
+        """Display a code block without executing it.
+
+        Args:
+            block_num: Code block number within step (1-indexed)
+            code_block: The code block to display
+        """
+        console.print(f"[bold]Block {block_num}:[/bold]")
+
+        # Display code with syntax highlighting
+        syntax = Syntax(code_block.code, code_block.language, theme="monokai", line_numbers=False)
+        console.print(Panel(syntax, border_style="cyan"))
+
+        # Display execution parameters
+        params = []
+        params.append(f"Validation: {code_block.mode} = {code_block.expected}")
+        if code_block.timeout != 30:
+            params.append(f"Timeout: {code_block.timeout}s")
+        if code_block.working_dir:
+            params.append(f"Working dir: {code_block.working_dir}")
+        console.print(f"[dim]{' | '.join(params)}[/dim]")
+        console.print()
+
     def _run_code_block(self, step_num: int, block_num: int, code_block: CodeBlock) -> bool:
         """Run a single code block.
 
@@ -134,24 +174,31 @@ class GuideRunner:
         Returns:
             True if validation passed, False otherwise
         """
-        console.print()
-        console.print(f"[bold]Code Block {block_num}:[/bold]")
+        # In CI mode, display the code block first
+        if not self.guided:
+            console.print()
+            console.print(f"[bold]Code Block {block_num}:[/bold]")
 
-        # Display code
-        syntax = Syntax(code_block.code, code_block.language, theme="monokai", line_numbers=False)
-        console.print(Panel(syntax, border_style="green"))
+            # Display code
+            syntax = Syntax(
+                code_block.code, code_block.language, theme="monokai", line_numbers=False
+            )
+            console.print(Panel(syntax, border_style="green"))
 
-        # Display execution parameters
-        console.print(f"[dim]Validation: {code_block.mode} = {code_block.expected}[/dim]")
-        if code_block.timeout != 30:
-            console.print(f"[dim]Timeout: {code_block.timeout}s[/dim]")
-        if code_block.working_dir:
-            console.print(f"[dim]Working dir: {code_block.working_dir}[/dim]")
+            # Display execution parameters
+            console.print(f"[dim]Validation: {code_block.mode} = {code_block.expected}[/dim]")
+            if code_block.timeout != 30:
+                console.print(f"[dim]Timeout: {code_block.timeout}s[/dim]")
+            if code_block.working_dir:
+                console.print(f"[dim]Working dir: {code_block.working_dir}[/dim]")
+            console.print()
+
+        # In guided mode, just show we're executing this specific block
+        if self.guided:
+            console.print(f"[cyan]▶ Executing Block {block_num}...[/cyan]")
 
         # Execute
-        console.print()
         if self.guided:
-            console.print("[cyan]Executing...[/cyan]")
             result, validation_passed, validation_message = self.executor.execute_and_validate(
                 code_block
             )
@@ -169,10 +216,12 @@ class GuideRunner:
 
         # Display output
         if result.stdout:
+            console.print()
             console.print("[bold]Output:[/bold]")
             console.print(result.stdout)
 
         if result.stderr:
+            console.print()
             console.print("[bold yellow]Error Output:[/bold yellow]")
             console.print(result.stderr)
 
@@ -180,12 +229,14 @@ class GuideRunner:
         console.print()
         if validation_passed:
             console.print(f"[bold green]✓ PASSED[/bold green]: {validation_message}")
+            console.print()
             return True
         else:
             console.print(f"[bold red]✗ FAILED[/bold red]: {validation_message}")
             if code_block.continue_on_error:
                 msg = "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]"
                 console.print(msg)
+            console.print()
             return False
 
     def _display_summary(self, all_passed: bool):
