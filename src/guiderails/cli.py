@@ -97,28 +97,19 @@ class GuideRunner:
             console.print(f"[dim]ID: {step.step_id}[/dim]")
             console.print()
 
-        # Display step content (explanation)
-        if step.content.strip():
-            console.print(Markdown(step.content.strip()))
-            console.print()
+        # Display step content with inline code blocks
+        self._display_step_content_with_blocks(step)
 
         # Check if step has executable code blocks
         if not step.code_blocks:
             console.print("[dim]No executable code blocks in this step[/dim]")
             return True
 
-        # In guided mode, display code blocks BEFORE asking to execute
+        # In guided mode, ask for confirmation after displaying content
         if self.guided:
-            # Show all code blocks that will be executed
+            console.print()
             num_blocks = len(step.code_blocks)
-            console.print(f"[bold cyan]Code to execute ({num_blocks} block(s)):[/bold cyan]")
-            console.print()
-            for block_idx, code_block in enumerate(step.code_blocks, start=1):
-                self._display_code_block(block_idx, code_block)
-
-            # Now ask for confirmation
-            console.print()
-            prompt = f"[cyan]▶ Execute the above {len(step.code_blocks)} code block(s)?[/cyan]"
+            prompt = f"[cyan]▶ Execute the above {num_blocks} code block(s)?[/cyan]"
             if not Confirm.ask(prompt, default=True):
                 console.print("[yellow]⊗ Skipped by user[/yellow]")
                 console.print()
@@ -139,6 +130,53 @@ class GuideRunner:
                     break
 
         return step_passed
+
+    def _display_step_content_with_blocks(self, step: Step):
+        """Display step content with code blocks shown inline.
+
+        This reconstructs the visual flow of the tutorial by displaying
+        content and code blocks as they appear in the original markdown.
+
+        Args:
+            step: The step to display
+        """
+        # Parse the content to find where code blocks should appear
+        content_lines = step.content.strip().split('\n') if step.content.strip() else []
+        
+        # Display all content as markdown (which naturally includes code block positions)
+        # The content already has the structure, we just need to enhance the code blocks
+        if content_lines:
+            console.print(Markdown(step.content.strip()))
+            console.print()
+        
+        # Now display the actual executable code blocks with their parameters
+        if step.code_blocks and self.guided:
+            for block_idx, code_block in enumerate(step.code_blocks, start=1):
+                self._display_code_block_inline(block_idx, code_block)
+
+    def _display_code_block_inline(self, block_num: int, code_block: CodeBlock):
+        """Display a code block inline with clear formatting for guided mode.
+
+        Args:
+            block_num: Code block number within step (1-indexed)
+            code_block: The code block to display
+        """
+        console.print(f"[dim]→ Code Block {block_num} (will execute):[/dim]")
+        
+        # Display code with syntax highlighting
+        syntax = Syntax(code_block.code, code_block.language, theme="monokai", line_numbers=False)
+        console.print(Panel(syntax, border_style="cyan"))
+        
+        # Display execution parameters compactly
+        params = []
+        params.append(f"mode={code_block.mode}")
+        params.append(f"expect={code_block.expected}")
+        if code_block.timeout != 30:
+            params.append(f"timeout={code_block.timeout}s")
+        if code_block.working_dir:
+            params.append(f"workdir={code_block.working_dir}")
+        console.print(f"[dim]  [{', '.join(params)}][/dim]")
+        console.print()
 
     def _display_code_block(self, block_num: int, code_block: CodeBlock):
         """Display a code block without executing it.
