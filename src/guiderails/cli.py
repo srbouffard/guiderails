@@ -152,6 +152,9 @@ class GuideRunner:
         console.print()
         if self.guided:
             console.print("[cyan]Executing...[/cyan]")
+            result, validation_passed, validation_message = self.executor.execute_and_validate(
+                code_block
+            )
         else:
             with Progress(
                 SpinnerColumn(),
@@ -163,11 +166,6 @@ class GuideRunner:
                 result, validation_passed, validation_message = self.executor.execute_and_validate(
                     code_block
                 )
-
-        if not self.guided or True:  # Always execute in both modes
-            result, validation_passed, validation_message = self.executor.execute_and_validate(
-                code_block
-            )
 
         # Display output
         if result.stdout:
