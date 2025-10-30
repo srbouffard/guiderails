@@ -95,44 +95,184 @@ class GuideRunner:
 
         if step.step_id:
             console.print(f"[dim]ID: {step.step_id}[/dim]")
-            console.print()
-
-        # Display step content with inline code blocks
-        self._display_step_content_with_blocks(step)
 
         # Check if step has executable code blocks
         if not step.code_blocks:
+            console.print()
             console.print("[dim]No executable code blocks in this step[/dim]")
             return True
 
-        # In guided mode, ask for confirmation after displaying content
+        # Display step content with inline code blocks in a box
+        console.print()
+        self._display_step_content_in_box(step)
+
+        # In guided mode, ask for confirmation in a box
         if self.guided:
-            # Add clear separation before prompt
-            console.print()
-            console.print("┈" * 80)
             console.print()
             num_blocks = len(step.code_blocks)
-            prompt = f"[cyan]▶ Execute the above {num_blocks} code block(s)?[/cyan]"
-            if not Confirm.ask(prompt, default=True):
-                console.print("[yellow]⊗ Skipped by user[/yellow]")
+            prompt_text = f"▶ Execute the above {num_blocks} code block(s)?"
+            
+            # Create prompt panel
+            console.print(
+                Panel(
+                    f"[cyan]{prompt_text}[/cyan]",
+                    border_style="cyan",
+                    title="[bold]Confirmation[/bold]",
+                    title_align="left",
+                )
+            )
+            
+            if not Confirm.ask("", default=True):
+                console.print()
+                console.print(
+                    Panel(
+                        "[yellow]⊗ Skipped by user[/yellow]",
+                        border_style="yellow",
+                    )
+                )
                 console.print()
                 return True
 
-            # Add visual separator before execution
-            console.print()
-            console.print("┈" * 80)
-            console.print()
-            console.print("[bold cyan]═══ Execution Results ═══[/bold cyan]")
-            console.print()
+            # Store cursor position to prevent scrolling
+            # (Rich doesn't support this directly, but we can minimize output)
 
-        # Execute code blocks
+        # Execute code blocks in a results box
+        console.print()
+        step_passed = self._execute_and_display_results(step)
+
+        return step_passed
+
+    def _display_step_content_in_box(self, step: Step):
+        """Display step content with code blocks in a bordered box.
+
+        Args:
+            step: The step to display
+        """
+        from io import StringIO
+        from rich.console import Console as RichConsole
+
+        # Capture the content rendering to a string
+        content_buffer = StringIO()
+        temp_console = RichConsole(file=content_buffer, width=console.width - 4, force_terminal=True)
+
+        # Use content_parts if available for proper interleaving
+        if step.content_parts:
+            for part in step.content_parts:
+                if isinstance(part, CodeBlock):
+                    # This is a code block - display it with formatting
+                    if self.guided:
+                        block_idx = step.code_blocks.index(part) + 1
+                        temp_console.print(f"[dim]→ Code Block {block_idx} (will execute):[/dim]")
+                        syntax = Syntax(
+                            part.code, part.language, theme="monokai", line_numbers=False
+                        )
+                        temp_console.print(
+                            Panel(syntax, border_style="cyan", padding=(0, 1))
+                        )
+                        # Display execution parameters compactly
+                        params = [f"mode={part.mode}", f"expect={part.expected}"]
+                        if part.timeout != 30:
+                            params.append(f"timeout={part.timeout}s")
+                        if part.working_dir:
+                            params.append(f"workdir={part.working_dir}")
+                        temp_console.print(f"[dim]  [{', '.join(params)}][/dim]")
+                        temp_console.print()
+                elif isinstance(part, str) and part.strip():
+                    # This is content text - display as markdown
+                    temp_console.print(Markdown(part.strip()))
+                    temp_console.print()
+        elif step.content.strip():
+            # Fallback to old behavior if content_parts not available
+            temp_console.print(Markdown(step.content.strip()))
+
+        # Get the rendered content
+        content_str = content_buffer.getvalue()
+
+        # Display in a panel
+        console.print(
+            Panel(
+                content_str,
+                border_style="green",
+                title="[bold]Step Content[/bold]",
+                title_align="left",
+                padding=(1, 2),
+            )
+        )
+
+    def _execute_and_display_results(self, step: Step) -> bool:
+        """Execute code blocks and display results in a box.
+
+        Args:
+            step: The step containing code blocks to execute
+
+        Returns:
+            True if all blocks passed, False otherwise
+        """
+        from io import StringIO
+        from rich.console import Console as RichConsole
+
+        # Capture execution results to a string
+        results_buffer = StringIO()
+        temp_console = RichConsole(
+            file=results_buffer, width=console.width - 4, force_terminal=True
+        )
+
         step_passed = True
         for block_idx, code_block in enumerate(step.code_blocks, start=1):
-            block_passed = self._run_code_block(step_num, block_idx, code_block)
-            if not block_passed:
+            temp_console.print(f"[bold cyan]Block {block_idx}:[/bold cyan]")
+            temp_console.print()
+
+            # Execute
+            result, validation_passed, validation_message = self.executor.execute_and_validate(
+                code_block
+            )
+
+            # Display output
+            if result.stdout:
+                temp_console.print("[bold]Output:[/bold]")
+                temp_console.print(result.stdout)
+
+            if result.stderr:
+                temp_console.print()
+                temp_console.print("[bold yellow]Error Output:[/bold yellow]")
+                temp_console.print(result.stderr)
+
+            # Display validation result
+            temp_console.print()
+            if validation_passed:
+                temp_console.print(
+                    f"[bold green]✓ PASSED[/bold green]: {validation_message}"
+                )
+            else:
+                temp_console.print(f"[bold red]✗ FAILED[/bold red]: {validation_message}")
+                if code_block.continue_on_error:
+                    temp_console.print(
+                        "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]"
+                    )
                 step_passed = False
-                if not code_block.continue_on_error:
-                    break
+
+            if not validation_passed and not code_block.continue_on_error:
+                break
+
+            if block_idx < len(step.code_blocks):
+                temp_console.print()
+                temp_console.print("─" * (console.width - 8))
+                temp_console.print()
+
+        # Get the rendered results
+        results_str = results_buffer.getvalue()
+
+        # Display in a panel
+        border_color = "green" if step_passed else "red"
+        console.print(
+            Panel(
+                results_str,
+                border_style=border_color,
+                title="[bold]Execution Results[/bold]",
+                title_align="left",
+                padding=(1, 2),
+            )
+        )
 
         return step_passed
 
