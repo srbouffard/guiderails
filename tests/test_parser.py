@@ -232,3 +232,113 @@ echo "hello"
     block = tutorial.steps[0].code_blocks[0]
     assert block.mode == "exact"
     assert block.expected == "hello"
+
+
+def test_parse_file_block():
+    """Test parsing a .gr-file block."""
+    markdown = """# Tutorial
+
+## Step {.gr-step}
+
+```bash {.gr-file data-path="script.sh" data-mode=write data-exec=true}
+#!/bin/bash
+echo "Hello"
+```
+"""
+
+    parser = MarkdownParser()
+    tutorial = parser.parse_markdown(markdown)
+
+    assert len(tutorial.steps) == 1
+    assert len(tutorial.steps[0].file_blocks) == 1
+    
+    file_block = tutorial.steps[0].file_blocks[0]
+    assert file_block.path == "script.sh"
+    assert file_block.mode == "write"
+    assert file_block.executable is True
+    assert file_block.template == "none"
+    assert file_block.once is False
+
+
+def test_parse_file_block_with_template():
+    """Test parsing a .gr-file block with template."""
+    markdown = """# Tutorial
+
+## Step {.gr-step}
+
+```python {.gr-file data-path="test.py" data-template=shell data-once=true}
+print("${VAR}")
+```
+"""
+
+    parser = MarkdownParser()
+    tutorial = parser.parse_markdown(markdown)
+
+    file_block = tutorial.steps[0].file_blocks[0]
+    assert file_block.path == "test.py"
+    assert file_block.template == "shell"
+    assert file_block.once is True
+    assert file_block.executable is False
+
+
+def test_parse_capture_attributes():
+    """Test parsing output capture attributes."""
+    markdown = """# Tutorial
+
+## Step {.gr-step}
+
+```bash {.gr-run data-out-var=OUTPUT data-code-var=EXIT_CODE}
+echo "test"
+```
+"""
+
+    parser = MarkdownParser()
+    tutorial = parser.parse_markdown(markdown)
+
+    block = tutorial.steps[0].code_blocks[0]
+    assert block.out_var == "OUTPUT"
+    assert block.code_var == "EXIT_CODE"
+    assert block.out_file is None
+
+
+def test_parse_out_file_attribute():
+    """Test parsing output file attribute."""
+    markdown = """# Tutorial
+
+## Step {.gr-step}
+
+```bash {.gr-run data-out-file="output.txt"}
+echo "test"
+```
+"""
+
+    parser = MarkdownParser()
+    tutorial = parser.parse_markdown(markdown)
+
+    block = tutorial.steps[0].code_blocks[0]
+    assert block.out_file == "output.txt"
+    assert block.out_var is None
+
+
+def test_parse_mixed_blocks():
+    """Test parsing a step with both file and code blocks."""
+    markdown = """# Tutorial
+
+## Step {.gr-step}
+
+```bash {.gr-file data-path="script.sh"}
+echo "hello"
+```
+
+```bash {.gr-run}
+bash script.sh
+```
+"""
+
+    parser = MarkdownParser()
+    tutorial = parser.parse_markdown(markdown)
+
+    assert len(tutorial.steps) == 1
+    assert len(tutorial.steps[0].file_blocks) == 1
+    assert len(tutorial.steps[0].code_blocks) == 1
+    assert len(tutorial.steps[0].content_parts) == 2
