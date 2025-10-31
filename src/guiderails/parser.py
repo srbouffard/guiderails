@@ -21,6 +21,24 @@ class CodeBlock:
     working_dir: Optional[str] = None
     continue_on_error: bool = False
     line_number: int = 0
+    # Capture attributes
+    out_var: Optional[str] = None  # Variable name to store stdout/stderr
+    out_file: Optional[str] = None  # File path to write stdout
+    code_var: Optional[str] = None  # Variable name to store exit code
+
+
+@dataclass
+class FileBlock:
+    """Represents a file-generating code block."""
+
+    code: str
+    language: str = "bash"
+    path: str = ""  # Target file path
+    mode: str = "write"  # write or append
+    executable: bool = False  # Whether to chmod +x
+    template: str = "none"  # none or shell (for ${VAR} substitution)
+    once: bool = False  # Skip if file exists
+    line_number: int = 0
 
 
 @dataclass
@@ -31,8 +49,9 @@ class Step:
     content: str
     step_id: Optional[str] = None
     code_blocks: List[CodeBlock] = field(default_factory=list)
+    file_blocks: List[FileBlock] = field(default_factory=list)
     line_number: int = 0
-    content_parts: List[Any] = field(default_factory=list)  # Ordered list of strings and CodeBlocks
+    content_parts: List[Any] = field(default_factory=list)  # Ordered list of strings, CodeBlocks, and FileBlocks
 
 
 @dataclass
@@ -143,7 +162,7 @@ class MarkdownParser:
                     # Ending a code block
                     in_code_block = False
 
-                    # Only process if it has .gr-run class
+                    # Process if it has .gr-run class
                     if "gr-run" in code_block_attrs.get("classes", []):
                         code = "\n".join(code_block_content)
                         code_block = self._create_code_block(
@@ -153,6 +172,17 @@ class MarkdownParser:
                         if current_step:
                             current_step.code_blocks.append(code_block)
                             current_step.content_parts.append(code_block)
+
+                    # Process if it has .gr-file class
+                    elif "gr-file" in code_block_attrs.get("classes", []):
+                        code = "\n".join(code_block_content)
+                        file_block = self._create_file_block(
+                            code, code_block_lang, code_block_attrs, code_block_start_line
+                        )
+
+                        if current_step:
+                            current_step.file_blocks.append(file_block)
+                            current_step.content_parts.append(file_block)
 
                     code_block_content = []
                     code_block_attrs = {}
@@ -256,5 +286,25 @@ class MarkdownParser:
             timeout=int(data.get("timeout", 30)),
             working_dir=data.get("workdir"),
             continue_on_error=data.get("continue-on-error", "").lower() == "true",
+            line_number=line_number,
+            out_var=data.get("out-var"),
+            out_file=data.get("out-file"),
+            code_var=data.get("code-var"),
+        )
+
+    def _create_file_block(
+        self, code: str, language: str, attrs: Dict[str, Any], line_number: int
+    ) -> FileBlock:
+        """Create a FileBlock from parsed attributes."""
+        data = attrs.get("data", {})
+
+        return FileBlock(
+            code=code.strip(),
+            language=language,
+            path=data.get("path", ""),
+            mode=data.get("mode", "write"),
+            executable=data.get("exec", "").lower() == "true",
+            template=data.get("template", "none"),
+            once=data.get("once", "").lower() == "true",
             line_number=line_number,
         )

@@ -11,8 +11,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
-from .executor import Executor
-from .parser import CodeBlock, MarkdownParser, Step, Tutorial
+from .executor import Executor, VariableStore
+from .parser import CodeBlock, FileBlock, MarkdownParser, Step, Tutorial
 
 console = Console()
 
@@ -20,18 +20,26 @@ console = Console()
 class GuideRunner:
     """Runs tutorials in guided or CI mode."""
 
-    def __init__(self, tutorial: Tutorial, working_dir: Optional[str] = None, guided: bool = True):
+    def __init__(
+        self,
+        tutorial: Tutorial,
+        working_dir: Optional[str] = None,
+        guided: bool = True,
+        variables: Optional[VariableStore] = None,
+    ):
         """Initialize the runner.
 
         Args:
             tutorial: The tutorial to run
             working_dir: Base working directory for execution
             guided: Whether to run in guided (interactive) mode
+            variables: Variable store for substitution
         """
         self.tutorial = tutorial
         self.working_dir = working_dir or os.getcwd()
         self.guided = guided
-        self.executor = Executor(base_working_dir=self.working_dir)
+        self.variables = variables or VariableStore()
+        self.executor = Executor(base_working_dir=self.working_dir, variable_store=self.variables)
         self.failed_steps = []
 
     def run(self) -> bool:
@@ -98,8 +106,9 @@ class GuideRunner:
         if step.step_id:
             console.print(f"[dim]ID: {step.step_id}[/dim]")
 
-        # Check if step has executable code blocks
-        if not step.code_blocks:
+        # Check if step has executable blocks (code or file)
+        has_blocks = len(step.code_blocks) > 0 or len(step.file_blocks) > 0
+        if not has_blocks:
             console.print()
             console.print("[dim]No executable code blocks in this step[/dim]")
             return True
@@ -119,8 +128,8 @@ class GuideRunner:
             title = "[bold cyan]Confirmation[/bold cyan]"
             title_len = len("Confirmation") + 3
             console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
-            num_blocks = len(step.code_blocks)
-            prompt_text = f"[cyan]▶ Execute the above {num_blocks} code block(s)?[/cyan]"
+            total_blocks = len(step.code_blocks) + len(step.file_blocks)
+            prompt_text = f"[cyan]▶ Execute the above {total_blocks} block(s)?[/cyan]"
             self._print_box_line(prompt_text, width)
             console.print("╰" + "─" * (width - 2) + "╯")
             console.print()
@@ -170,12 +179,19 @@ class GuideRunner:
 
         # Use content_parts if available for proper interleaving
         if step.content_parts:
+            code_block_idx = 0
+            file_block_idx = 0
             for part in step.content_parts:
                 if isinstance(part, CodeBlock):
                     # This is a code block - display it with formatting in guided mode
                     if self.guided:
-                        block_idx = step.code_blocks.index(part) + 1
-                        self._display_code_block_inline(block_idx, part)
+                        code_block_idx += 1
+                        self._display_code_block_inline(code_block_idx, part, "Code")
+                elif isinstance(part, FileBlock):
+                    # This is a file block - display it with formatting in guided mode
+                    if self.guided:
+                        file_block_idx += 1
+                        self._display_file_block_inline(file_block_idx, part)
                 elif isinstance(part, str) and part.strip():
                     # This is content text - display with proper padding
                     lines = part.strip().split("\n")
@@ -190,26 +206,39 @@ class GuideRunner:
                 self._print_box_line(line, width)
             self._print_box_line("", width)
 
-            if step.code_blocks and self.guided:
-                for block_idx, code_block in enumerate(step.code_blocks, start=1):
-                    self._display_code_block_inline(block_idx, code_block)
+            if self.guided:
+                # Display file blocks first
+                for block_idx, file_block in enumerate(step.file_blocks, start=1):
+                    self._display_file_block_inline(block_idx, file_block)
 
-    def _display_code_block_inline(self, block_num: int, code_block: CodeBlock):
+                # Then code blocks
+                for block_idx, code_block in enumerate(step.code_blocks, start=1):
+                    self._display_code_block_inline(block_idx, code_block, "Code")
+
+    def _display_code_block_inline(self, block_num: int, code_block: CodeBlock, label: str = "Code"):
         """Display a code block inline with clear formatting for guided mode.
 
         Args:
             block_num: Code block number within step (1-indexed)
             code_block: The code block to display
+            label: Label for the block type (e.g., "Code", "File")
         """
         width = console.width
 
-        self._print_box_line(f"[dim]→ Code Block {block_num} (will execute):[/dim]", width)
+        # Show preview of substituted code if variables are used
+        substituted_code = self.variables.substitute(code_block.code)
+        has_substitution = substituted_code != code_block.code
+
+        self._print_box_line(f"[dim]→ {label} Block {block_num} (will execute):[/dim]", width)
         self._print_box_line("", width)
 
         # Display code with simple border - adjust inner width to terminal
         inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
         self._print_box_line("┌" + "─" * inner_width + "┐", width)
-        for line in code_block.code.split("\n"):
+
+        # Display original or substituted code
+        code_to_display = substituted_code if has_substitution else code_block.code
+        for line in code_to_display.split("\n"):
             # Pad code line to inner width
             plain_line = line
             line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
@@ -217,20 +246,74 @@ class GuideRunner:
             self._print_box_line(padded_code, width)
         self._print_box_line("└" + "─" * inner_width + "┘", width)
 
+        if has_substitution:
+            self._print_box_line("[dim](variable substitution applied)[/dim]", width)
+
         # Display execution parameters compactly
         params = [f"mode={code_block.mode}", f"expect={code_block.expected}"]
         if code_block.timeout != 30:
             params.append(f"timeout={code_block.timeout}s")
         if code_block.working_dir:
             params.append(f"workdir={code_block.working_dir}")
+        if code_block.out_var:
+            params.append(f"out-var={code_block.out_var}")
+        if code_block.out_file:
+            params.append(f"out-file={code_block.out_file}")
+        if code_block.code_var:
+            params.append(f"code-var={code_block.code_var}")
+        self._print_box_line(f"[dim][{', '.join(params)}][/dim]", width)
+        self._print_box_line("", width)
+
+    def _display_file_block_inline(self, block_num: int, file_block: FileBlock):
+        """Display a file block inline with clear formatting for guided mode.
+
+        Args:
+            block_num: File block number within step (1-indexed)
+            file_block: The file block to display
+        """
+        width = console.width
+
+        # Show preview of substituted code if template=shell
+        content = file_block.code
+        if file_block.template == "shell":
+            content = self.variables.substitute(content)
+            has_substitution = content != file_block.code
+        else:
+            has_substitution = False
+
+        self._print_box_line(f"[dim]→ File Block {block_num} (will write to file):[/dim]", width)
+        self._print_box_line("", width)
+
+        # Display code with simple border - adjust inner width to terminal
+        inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
+        self._print_box_line("┌" + "─" * inner_width + "┐", width)
+        for line in content.split("\n"):
+            # Pad code line to inner width
+            plain_line = line
+            line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
+            padded_code = f"│ [green]{line}[/green]{' ' * max(0, line_padding)} │"
+            self._print_box_line(padded_code, width)
+        self._print_box_line("└" + "─" * inner_width + "┘", width)
+
+        if has_substitution:
+            self._print_box_line("[dim](variable substitution applied)[/dim]", width)
+
+        # Display file parameters
+        params = [f"path={file_block.path}", f"mode={file_block.mode}"]
+        if file_block.executable:
+            params.append("executable=true")
+        if file_block.template != "none":
+            params.append(f"template={file_block.template}")
+        if file_block.once:
+            params.append("once=true")
         self._print_box_line(f"[dim][{', '.join(params)}][/dim]", width)
         self._print_box_line("", width)
 
     def _execute_and_display_results(self, step: Step) -> bool:
-        """Execute code blocks and display results in a box.
+        """Execute file blocks and code blocks, then display results in a box.
 
         Args:
-            step: The step containing code blocks to execute
+            step: The step containing blocks to execute
 
         Returns:
             True if all blocks passed, False otherwise
@@ -242,8 +325,30 @@ class GuideRunner:
         title_len = len("Execution Results") + 3
         console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
 
+        # Execute file blocks first (they need to be written before code blocks run)
+        for block_idx, file_block in enumerate(step.file_blocks, start=1):
+            self._print_box_line(f"[bold magenta]File Block {block_idx}:[/bold magenta]", width)
+            self._print_box_line("", width)
+
+            # Write file
+            success, message = self.executor.write_file(file_block)
+
+            # Display result
+            self._print_box_line("", width)
+            if success:
+                self._print_box_line(f"[bold green]✓ SUCCESS[/bold green]: {message}", width)
+            else:
+                self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {message}", width)
+                step_passed = False
+
+            if block_idx < len(step.file_blocks) or len(step.code_blocks) > 0:
+                self._print_box_line("", width)
+                self._print_box_line("─" * (width - 5), width)
+                self._print_box_line("", width)
+
+        # Execute code blocks
         for block_idx, code_block in enumerate(step.code_blocks, start=1):
-            self._print_box_line(f"[bold cyan]Block {block_idx}:[/bold cyan]", width)
+            self._print_box_line(f"[bold cyan]Code Block {block_idx}:[/bold cyan]", width)
             self._print_box_line("", width)
 
             # Execute
@@ -265,6 +370,16 @@ class GuideRunner:
                 for line in result.stderr.split("\n"):
                     if line:
                         self._print_box_line(f"  {line}", width)
+
+            # Display capture info if variables were set
+            if code_block.out_var:
+                captured = self.variables.get(code_block.out_var)
+                self._print_box_line("", width)
+                self._print_box_line(f"[dim]Captured to variable {code_block.out_var}: {len(captured)} chars[/dim]", width)
+
+            if code_block.code_var:
+                exit_code = self.variables.get(code_block.code_var)
+                self._print_box_line(f"[dim]Captured exit code to {code_block.code_var}: {exit_code}[/dim]", width)
 
             # Display validation result
             self._print_box_line("", width)
