@@ -1,0 +1,35 @@
+name: Validate Tutorials
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install GuideRails
+      run: |
+        pip install -e .
+    
+    - name: Validate getting-started tutorial
+      run: |
+        guiderun exec --ci examples/getting-started.md
+    
+    - name: Display results
+      if: always()
+      run: |
+        echo "Tutorial validation completed"
