@@ -310,7 +310,7 @@ class GuideRunner:
         self._print_box_line("", width)
 
     def _execute_and_display_results(self, step: Step) -> bool:
-        """Execute file blocks and code blocks, then display results in a box.
+        """Execute file blocks and code blocks in order, then display results in a box.
 
         Args:
             step: The step containing blocks to execute
@@ -325,84 +325,94 @@ class GuideRunner:
         title_len = len("Execution Results") + 3
         console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
 
-        # Execute file blocks first (they need to be written before code blocks run)
-        for block_idx, file_block in enumerate(step.file_blocks, start=1):
-            self._print_box_line(f"[bold magenta]File Block {block_idx}:[/bold magenta]", width)
-            self._print_box_line("", width)
+        # Execute blocks in the order they appear in content_parts
+        file_block_num = 0
+        code_block_num = 0
+        total_blocks = len(step.file_blocks) + len(step.code_blocks)
+        current_block = 0
 
-            # Write file
-            success, message = self.executor.write_file(file_block)
-
-            # Display result
-            self._print_box_line("", width)
-            if success:
-                self._print_box_line(f"[bold green]✓ SUCCESS[/bold green]: {message}", width)
-            else:
-                self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {message}", width)
-                step_passed = False
-
-            if block_idx < len(step.file_blocks) or len(step.code_blocks) > 0:
-                self._print_box_line("", width)
-                self._print_box_line("─" * (width - 5), width)
+        for part in step.content_parts:
+            if isinstance(part, FileBlock):
+                file_block_num += 1
+                current_block += 1
+                self._print_box_line(f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width)
                 self._print_box_line("", width)
 
-        # Execute code blocks
-        for block_idx, code_block in enumerate(step.code_blocks, start=1):
-            self._print_box_line(f"[bold cyan]Code Block {block_idx}:[/bold cyan]", width)
-            self._print_box_line("", width)
+                # Write file
+                success, message = self.executor.write_file(part)
 
-            # Execute
-            result, validation_passed, validation_message = self.executor.execute_and_validate(
-                code_block
-            )
-
-            # Display output
-            if result.stdout:
-                self._print_box_line("[bold]Output:[/bold]", width)
-                for line in result.stdout.split("\n"):
-                    if line:
-                        # Add extra indent for output
-                        self._print_box_line(f"  {line}", width)
-
-            if result.stderr:
+                # Display result
                 self._print_box_line("", width)
-                self._print_box_line("[bold yellow]Error Output:[/bold yellow]", width)
-                for line in result.stderr.split("\n"):
-                    if line:
-                        self._print_box_line(f"  {line}", width)
+                if success:
+                    self._print_box_line(f"[bold green]✓ SUCCESS[/bold green]: {message}", width)
+                else:
+                    self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {message}", width)
+                    step_passed = False
 
-            # Display capture info if variables were set
-            if code_block.out_var:
-                captured = self.variables.get(code_block.out_var)
+                if current_block < total_blocks:
+                    self._print_box_line("", width)
+                    self._print_box_line("─" * (width - 5), width)
+                    self._print_box_line("", width)
+
+            elif isinstance(part, CodeBlock):
+                code_block_num += 1
+                current_block += 1
+                self._print_box_line(f"[bold cyan]Code Block {code_block_num}:[/bold cyan]", width)
                 self._print_box_line("", width)
-                self._print_box_line(f"[dim]Captured to variable {code_block.out_var}: {len(captured)} chars[/dim]", width)
 
-            if code_block.code_var:
-                exit_code = self.variables.get(code_block.code_var)
-                self._print_box_line(f"[dim]Captured exit code to {code_block.code_var}: {exit_code}[/dim]", width)
-
-            # Display validation result
-            self._print_box_line("", width)
-            if validation_passed:
-                self._print_box_line(
-                    f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
+                # Execute
+                result, validation_passed, validation_message = self.executor.execute_and_validate(
+                    part
                 )
-            else:
-                self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {validation_message}", width)
-                if code_block.continue_on_error:
+
+                # Display output
+                if result.stdout:
+                    self._print_box_line("[bold]Output:[/bold]", width)
+                    for line in result.stdout.split("\n"):
+                        if line:
+                            # Add extra indent for output
+                            self._print_box_line(f"  {line}", width)
+
+                if result.stderr:
+                    self._print_box_line("", width)
+                    self._print_box_line("[bold yellow]Error Output:[/bold yellow]", width)
+                    for line in result.stderr.split("\n"):
+                        if line:
+                            self._print_box_line(f"  {line}", width)
+
+                # Display capture info if variables were set
+                if part.out_var:
+                    captured = self.variables.get(part.out_var)
+                    self._print_box_line("", width)
+                    self._print_box_line(f"[dim]Captured to variable {part.out_var}: {len(captured)} chars[/dim]", width)
+
+                if part.code_var:
+                    exit_code = self.variables.get(part.code_var)
+                    self._print_box_line(f"[dim]Captured exit code to {part.code_var}: {exit_code}[/dim]", width)
+
+                # Display validation result
+                self._print_box_line("", width)
+                if validation_passed:
                     self._print_box_line(
-                        "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",
-                        width,
+                        f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
                     )
-                step_passed = False
+                else:
+                    self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {validation_message}", width)
+                    if part.continue_on_error:
+                        self._print_box_line(
+                            "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",
+                            width,
+                        )
+                    else:
+                        step_passed = False
 
-            if not validation_passed and not code_block.continue_on_error:
-                break
+                if not validation_passed and not part.continue_on_error:
+                    break
 
-            if block_idx < len(step.code_blocks):
-                self._print_box_line("", width)
-                self._print_box_line("─" * (width - 5), width)
-                self._print_box_line("", width)
+                if current_block < total_blocks:
+                    self._print_box_line("", width)
+                    self._print_box_line("─" * (width - 5), width)
+                    self._print_box_line("", width)
 
         self._print_box_line("", width)
 
