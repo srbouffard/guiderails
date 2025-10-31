@@ -119,7 +119,7 @@ class MarkdownParser:
                         if content_text.strip():
                             current_step.content_parts.append(content_text)
                         current_content_buffer = []
-                    
+
                     in_code_block = True
                     code_block_content = []
                     code_block_start_line = line_num

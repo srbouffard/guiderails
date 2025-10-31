@@ -6,7 +6,6 @@ from typing import Optional
 
 import click
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
@@ -88,7 +87,7 @@ class GuideRunner:
         """
         # Get terminal width for full-width boxes
         width = console.width
-        
+
         # Display step header with clear separation
         console.print()
         console.print("─" * width)
@@ -125,7 +124,7 @@ class GuideRunner:
             self._print_box_line(prompt_text, width)
             console.print("╰" + "─" * (width - 2) + "╯")
             console.print()
-            
+
             if not Confirm.ask("", default=True):
                 console.print()
                 title = "[bold yellow]Status[/bold yellow]"
@@ -144,14 +143,15 @@ class GuideRunner:
 
     def _print_box_line(self, text: str, width: int):
         """Print a line inside a box with proper padding to reach the right border.
-        
+
         Args:
             text: The text to print (may contain Rich markup)
             width: Terminal width
         """
         # Strip Rich markup to calculate actual text length
         import re
-        plain_text = re.sub(r'\[/?[^\]]+\]', '', text)
+
+        plain_text = re.sub(r"\[/?[^\]]+\]", "", text)
         text_len = len(plain_text)
         # Account for "│  " prefix (3 chars) and " │" suffix (2 chars)
         padding = width - text_len - 5
@@ -167,7 +167,7 @@ class GuideRunner:
             step: The step to display
         """
         width = console.width
-        
+
         # Use content_parts if available for proper interleaving
         if step.content_parts:
             for part in step.content_parts:
@@ -178,18 +178,18 @@ class GuideRunner:
                         self._display_code_block_inline(block_idx, part)
                 elif isinstance(part, str) and part.strip():
                     # This is content text - display with proper padding
-                    lines = part.strip().split('\n')
+                    lines = part.strip().split("\n")
                     for line in lines:
                         self._print_box_line(line, width)
                     # Add spacing after content block
                     self._print_box_line("", width)
         elif step.content.strip():
             # Fallback to old behavior if content_parts not available
-            lines = step.content.strip().split('\n')
+            lines = step.content.strip().split("\n")
             for line in lines:
                 self._print_box_line(line, width)
             self._print_box_line("", width)
-            
+
             if step.code_blocks and self.guided:
                 for block_idx, code_block in enumerate(step.code_blocks, start=1):
                     self._display_code_block_inline(block_idx, code_block)
@@ -202,22 +202,21 @@ class GuideRunner:
             code_block: The code block to display
         """
         width = console.width
-        
+
         self._print_box_line(f"[dim]→ Code Block {block_num} (will execute):[/dim]", width)
         self._print_box_line("", width)
-        
+
         # Display code with simple border - adjust inner width to terminal
         inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
         self._print_box_line("┌" + "─" * inner_width + "┐", width)
-        for line in code_block.code.split('\n'):
+        for line in code_block.code.split("\n"):
             # Pad code line to inner width
-            code_line = f"│ [cyan]{line}[/cyan]"
             plain_line = line
             line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
             padded_code = f"│ [cyan]{line}[/cyan]{' ' * max(0, line_padding)} │"
             self._print_box_line(padded_code, width)
         self._print_box_line("└" + "─" * inner_width + "┘", width)
-        
+
         # Display execution parameters compactly
         params = [f"mode={code_block.mode}", f"expect={code_block.expected}"]
         if code_block.timeout != 30:
@@ -238,7 +237,7 @@ class GuideRunner:
         """
         width = console.width
         step_passed = True
-        
+
         title = "[bold green]Execution Results[/bold green]"
         title_len = len("Execution Results") + 3
         console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
@@ -255,7 +254,7 @@ class GuideRunner:
             # Display output
             if result.stdout:
                 self._print_box_line("[bold]Output:[/bold]", width)
-                for line in result.stdout.split('\n'):
+                for line in result.stdout.split("\n"):
                     if line:
                         # Add extra indent for output
                         self._print_box_line(f"  {line}", width)
@@ -263,7 +262,7 @@ class GuideRunner:
             if result.stderr:
                 self._print_box_line("", width)
                 self._print_box_line("[bold yellow]Error Output:[/bold yellow]", width)
-                for line in result.stderr.split('\n'):
+                for line in result.stderr.split("\n"):
                     if line:
                         self._print_box_line(f"  {line}", width)
 
@@ -274,13 +273,11 @@ class GuideRunner:
                     f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
                 )
             else:
-                self._print_box_line(
-                    f"[bold red]✗ FAILED[/bold red]: {validation_message}", width
-                )
+                self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {validation_message}", width)
                 if code_block.continue_on_error:
                     self._print_box_line(
                         "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",
-                        width
+                        width,
                     )
                 step_passed = False
 
@@ -293,7 +290,7 @@ class GuideRunner:
                 self._print_box_line("", width)
 
         self._print_box_line("", width)
-        
+
         # Update border color based on results
         if not step_passed:
             console.print("╰" + "─" * (width - 2) + "╯ [red]✗ Failed[/red]")
