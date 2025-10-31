@@ -70,10 +70,6 @@ First, capture some configuration values:
 echo -n "1.0.0"
 ```
 
-```bash {.gr-run data-mode=exit data-exp=0 data-out-var=APP_VERSION}
-echo -n "1.0.0"
-```
-
 ```bash {.gr-run data-mode=exit data-exp=0 data-out-var=APP_PORT}
 echo -n "8080"
 ```
