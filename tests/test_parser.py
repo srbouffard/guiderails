@@ -251,7 +251,7 @@ echo "Hello"
 
     assert len(tutorial.steps) == 1
     assert len(tutorial.steps[0].file_blocks) == 1
-    
+
     file_block = tutorial.steps[0].file_blocks[0]
     assert file_block.path == "script.sh"
     assert file_block.mode == "write"

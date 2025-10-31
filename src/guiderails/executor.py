@@ -5,7 +5,6 @@ import re
 import stat
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from .parser import CodeBlock, FileBlock
@@ -40,7 +39,7 @@ class VariableStore:
             Text with substitutions applied
         """
         # Pattern to match ${VAR_NAME}
-        pattern = re.compile(r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}')
+        pattern = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
 
         def replace_var(match):
             var_name = match.group(1)
@@ -53,7 +52,9 @@ class PathSandbox:
     """Validates paths to ensure they stay within the working directory."""
 
     @staticmethod
-    def validate_path(path: str, base_dir: str, allow_outside: bool = False) -> Tuple[bool, str, str]:
+    def validate_path(
+        path: str, base_dir: str, allow_outside: bool = False
+    ) -> Tuple[bool, str, str]:
         """Validate a file path for safety.
 
         Args:
@@ -82,7 +83,11 @@ class PathSandbox:
                 # Check if resolved path is under base_dir
                 os.path.relpath(resolved, base_abs)
                 if not resolved.startswith(base_abs + os.sep) and resolved != base_abs:
-                    return False, "", f"Path traversal outside working directory not allowed: {path}"
+                    return (
+                        False,
+                        "",
+                        f"Path traversal outside working directory not allowed: {path}",
+                    )
             except ValueError:
                 # Different drives on Windows
                 return False, "", f"Path is on a different drive: {path}"
@@ -221,7 +226,9 @@ class Executor:
             # Make executable if requested
             if file_block.executable:
                 current_permissions = os.stat(resolved_path).st_mode
-                os.chmod(resolved_path, current_permissions | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                os.chmod(
+                    resolved_path, current_permissions | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+                )
 
             size = os.path.getsize(resolved_path)
             return True, f"Wrote {size} bytes to {file_block.path}"

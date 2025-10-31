@@ -215,7 +215,9 @@ class GuideRunner:
                 for block_idx, code_block in enumerate(step.code_blocks, start=1):
                     self._display_code_block_inline(block_idx, code_block, "Code")
 
-    def _display_code_block_inline(self, block_num: int, code_block: CodeBlock, label: str = "Code"):
+    def _display_code_block_inline(
+        self, block_num: int, code_block: CodeBlock, label: str = "Code"
+    ):
         """Display a code block inline with clear formatting for guided mode.
 
         Args:
@@ -335,7 +337,9 @@ class GuideRunner:
             if isinstance(part, FileBlock):
                 file_block_num += 1
                 current_block += 1
-                self._print_box_line(f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width)
+                self._print_box_line(
+                    f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width
+                )
                 self._print_box_line("", width)
 
                 # Write file
@@ -384,11 +388,16 @@ class GuideRunner:
                 if part.out_var:
                     captured = self.variables.get(part.out_var)
                     self._print_box_line("", width)
-                    self._print_box_line(f"[dim]Captured to variable {part.out_var}: {len(captured)} chars[/dim]", width)
+                    self._print_box_line(
+                        f"[dim]Captured to variable {part.out_var}: {len(captured)} chars[/dim]",
+                        width,
+                    )
 
                 if part.code_var:
                     exit_code = self.variables.get(part.code_var)
-                    self._print_box_line(f"[dim]Captured exit code to {part.code_var}: {exit_code}[/dim]", width)
+                    self._print_box_line(
+                        f"[dim]Captured exit code to {part.code_var}: {exit_code}[/dim]", width
+                    )
 
                 # Display validation result
                 self._print_box_line("", width)
@@ -397,7 +406,9 @@ class GuideRunner:
                         f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
                     )
                 else:
-                    self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {validation_message}", width)
+                    self._print_box_line(
+                        f"[bold red]✗ FAILED[/bold red]: {validation_message}", width
+                    )
                     if part.continue_on_error:
                         self._print_box_line(
                             "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",

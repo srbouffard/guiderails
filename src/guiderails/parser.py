@@ -51,7 +51,9 @@ class Step:
     code_blocks: List[CodeBlock] = field(default_factory=list)
     file_blocks: List[FileBlock] = field(default_factory=list)
     line_number: int = 0
-    content_parts: List[Any] = field(default_factory=list)  # Ordered list of strings, CodeBlocks, and FileBlocks
+    content_parts: List[Any] = field(
+        default_factory=list
+    )  # Ordered list of strings, CodeBlocks, and FileBlocks
 
 
 @dataclass
