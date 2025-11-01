@@ -227,7 +227,7 @@ class GuideRunner:
         """
         width = console.width
 
-        # Show preview of substituted code if variables are used
+        # Check if substitution will occur at runtime
         substituted_code = self.variables.substitute(code_block.code)
         has_substitution = substituted_code != code_block.code
 
@@ -238,9 +238,8 @@ class GuideRunner:
         inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
         self._print_box_line("┌" + "─" * inner_width + "┐", width)
 
-        # Display original or substituted code
-        code_to_display = substituted_code if has_substitution else code_block.code
-        for line in code_to_display.split("\n"):
+        # Always display original code to match tutorial text
+        for line in code_block.code.split("\n"):
             # Pad code line to inner width
             plain_line = line
             line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
@@ -249,7 +248,9 @@ class GuideRunner:
         self._print_box_line("└" + "─" * inner_width + "┘", width)
 
         if has_substitution:
-            self._print_box_line("[dim](variable substitution applied)[/dim]", width)
+            self._print_box_line(
+                "[dim](variable substitution will be applied at runtime)[/dim]", width
+            )
 
         # Display execution parameters compactly
         params = [f"mode={code_block.mode}", f"expect={code_block.expected}"]
@@ -275,13 +276,11 @@ class GuideRunner:
         """
         width = console.width
 
-        # Show preview of substituted code if template=shell
-        content = file_block.code
+        # Check if substitution will occur when file is written
+        has_substitution = False
         if file_block.template == "shell":
-            content = self.variables.substitute(content)
-            has_substitution = content != file_block.code
-        else:
-            has_substitution = False
+            substituted = self.variables.substitute(file_block.code)
+            has_substitution = substituted != file_block.code
 
         self._print_box_line(f"[dim]→ File Block {block_num} (will write to file):[/dim]", width)
         self._print_box_line("", width)
@@ -289,7 +288,8 @@ class GuideRunner:
         # Display code with simple border - adjust inner width to terminal
         inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
         self._print_box_line("┌" + "─" * inner_width + "┐", width)
-        for line in content.split("\n"):
+        # Always display original content to match tutorial text
+        for line in file_block.code.split("\n"):
             # Pad code line to inner width
             plain_line = line
             line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
@@ -298,7 +298,9 @@ class GuideRunner:
         self._print_box_line("└" + "─" * inner_width + "┘", width)
 
         if has_substitution:
-            self._print_box_line("[dim](variable substitution applied)[/dim]", width)
+            self._print_box_line(
+                "[dim](variable substitution will be applied when writing)[/dim]", width
+            )
 
         # Display file parameters
         params = [f"path={file_block.path}", f"mode={file_block.mode}"]
