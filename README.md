@@ -14,8 +14,12 @@ GuideRails enables you to write interactive, executable tutorials in Markdown th
 - **Interactive mode**: Step-by-step guided execution with user prompts
 - **CI mode**: Automated validation for continuous integration
 - **Flexible validation**: Support for exit codes, output matching, regex, and exact comparisons
+- **File generation**: Create files directly from code blocks with `.gr-file`
+- **Output capture**: Store command output and exit codes in variables
+- **Variable substitution**: Use `${VAR}` syntax for continuity across steps
 - **Web support**: Load tutorials from URLs with meta tag discovery
 - **Developer-friendly**: Simple attribute syntax for marking executable steps
+- **Safe by default**: Sandboxed file operations within working directory
 
 ## Installation
 
@@ -123,6 +127,68 @@ echo "Hello, World!"
 \```
 ```
 
+### File-Generating Blocks
+
+Create files directly from your tutorial using `.gr-file` blocks:
+
+```markdown
+\```bash {.gr-file data-path="script.sh" data-mode=write data-exec=true}
+#!/bin/bash
+echo "Hello from GuideRails!"
+\```
+```
+
+**Attributes:**
+- `data-path`: Target file path (relative to working directory)
+- `data-mode`: `write` (default, overwrite) or `append`
+- `data-exec`: `true` to make file executable (chmod +x)
+- `data-template`: `none` (default) or `shell` (enables ${VAR} substitution)
+- `data-once`: `true` to skip if file already exists
+
+**Example with variable substitution:**
+```markdown
+\```python {.gr-file data-path="config.py" data-template=shell}
+VERSION = "${APP_VERSION}"
+PORT = ${PORT}
+\```
+```
+
+### Output and Exit Code Capture
+
+Capture command output and exit codes for use in later steps:
+
+```markdown
+\```bash {.gr-run data-out-var=GREETING data-code-var=EXIT_STATUS}
+echo "Hello, World!"
+exit 0
+\```
+```
+
+**Capture Options:**
+- `data-out-var=VARNAME`: Store combined stdout/stderr in a variable
+- `data-out-file=path`: Write stdout to a file
+- `data-code-var=VARNAME`: Store exit code in a variable
+
+### Variable Substitution
+
+Use captured variables in subsequent blocks with `${VAR}` syntax:
+
+```markdown
+\```bash {.gr-run data-out-var=NAME}
+echo -n "Alice"
+\```
+
+\```bash {.gr-run data-mode=contains data-exp="Hello, Alice"}
+echo "Hello, ${NAME}"
+\```
+```
+
+Variables are automatically substituted when:
+- Running `.gr-run` code blocks (command is substituted before execution)
+- Writing `.gr-file` blocks with `data-template=shell`
+
+**Safety:** File paths are sandboxed to the working directory by default. Absolute paths and `..` traversal are rejected unless explicitly allowed with CLI flags.
+
 ### Additional Options
 
 - **Timeout**: `data-timeout=60` (seconds, default: 30)
@@ -226,6 +292,7 @@ jobs:
 See the [examples](examples/) directory for sample tutorials:
 
 - [getting-started.md](examples/getting-started.md) - Basic GuideRails tutorial
+- [file-generation-and-capture.md](examples/file-generation-and-capture.md) - File generation, output capture, and variable substitution
 - [tutorial-page.html](examples/tutorial-page.html) - HTML page with meta tag
 
 ## Development
