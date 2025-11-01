@@ -131,8 +131,11 @@ class OutputConfig:
         result.verbosity = level
         result.is_ci = is_ci
         
-        # Apply CI defaults
-        if is_ci and verbosity is None and not quiet and verbose_count == 0 and not debug:
+        # Apply CI defaults only if verbosity wasn't explicitly set anywhere
+        env_verbosity = os.environ.get("GUIDERAILS_VERBOSITY")
+        if (is_ci and verbosity is None and not quiet and verbose_count == 0 
+            and not debug and not env_verbosity and 
+            (not config or config.verbosity == VerbosityLevel.NORMAL)):
             # CI defaults to quiet unless explicitly set
             result.verbosity = VerbosityLevel.QUIET
         
