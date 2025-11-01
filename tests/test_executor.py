@@ -1,8 +1,7 @@
 """Tests for the command executor and validator."""
 
-import pytest
+from guiderails.executor import ExecutionResult, Executor, Validator
 from guiderails.parser import CodeBlock
-from guiderails.executor import Executor, Validator, ExecutionResult
 
 
 def test_execute_simple_command():
@@ -234,8 +233,9 @@ def test_variable_substitution_no_match():
 
 def test_path_sandbox_relative_path():
     """Test path sandbox validates relative paths."""
-    from guiderails.executor import PathSandbox
     import tempfile
+
+    from guiderails.executor import PathSandbox
 
     with tempfile.TemporaryDirectory() as tmpdir:
         is_valid, resolved, error = PathSandbox.validate_path("test.txt", tmpdir, False)
@@ -246,8 +246,9 @@ def test_path_sandbox_relative_path():
 
 def test_path_sandbox_rejects_absolute_path():
     """Test path sandbox rejects absolute paths by default."""
-    from guiderails.executor import PathSandbox
     import tempfile
+
+    from guiderails.executor import PathSandbox
 
     with tempfile.TemporaryDirectory() as tmpdir:
         is_valid, resolved, error = PathSandbox.validate_path("/etc/passwd", tmpdir, False)
@@ -257,8 +258,9 @@ def test_path_sandbox_rejects_absolute_path():
 
 def test_path_sandbox_allows_absolute_with_flag():
     """Test path sandbox allows absolute paths when flag is set."""
-    from guiderails.executor import PathSandbox
     import tempfile
+
+    from guiderails.executor import PathSandbox
 
     with tempfile.TemporaryDirectory() as tmpdir:
         is_valid, resolved, error = PathSandbox.validate_path("/tmp/test.txt", tmpdir, True)
@@ -267,8 +269,9 @@ def test_path_sandbox_allows_absolute_with_flag():
 
 def test_path_sandbox_rejects_traversal():
     """Test path sandbox rejects path traversal."""
-    from guiderails.executor import PathSandbox
     import tempfile
+
+    from guiderails.executor import PathSandbox
 
     with tempfile.TemporaryDirectory() as tmpdir:
         is_valid, resolved, error = PathSandbox.validate_path("../../../etc/passwd", tmpdir, False)
@@ -343,8 +346,9 @@ def test_write_file_append_mode(tmp_path):
 
 def test_write_file_executable(tmp_path):
     """Test making a file executable."""
-    from guiderails.parser import FileBlock
     import stat
+
+    from guiderails.parser import FileBlock
 
     executor = Executor(base_working_dir=str(tmp_path))
     file_block = FileBlock(
@@ -367,8 +371,8 @@ def test_write_file_executable(tmp_path):
 
 def test_write_file_with_template(tmp_path):
     """Test writing a file with variable substitution."""
-    from guiderails.parser import FileBlock
     from guiderails.executor import VariableStore
+    from guiderails.parser import FileBlock
 
     store = VariableStore({"NAME": "Alice", "AGE": "30"})
     executor = Executor(base_working_dir=str(tmp_path), variable_store=store)
@@ -500,7 +504,7 @@ def test_execute_with_all_captures(tmp_path):
         out_file="result.txt",
     )
 
-    result = executor.execute_code_block(code_block)
+    executor.execute_code_block(code_block)
 
     assert store.get("OUT") == "Output"
     assert store.get("CODE") == "5"

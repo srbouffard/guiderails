@@ -1,10 +1,6 @@
 """Tests for configuration management."""
 
 import os
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from guiderails.config import OutputConfig, VerbosityLevel
 
@@ -172,19 +168,21 @@ def test_config_file_loading(tmp_path):
     """Test loading configuration from guiderails.yml."""
     # Create a config file
     config_file = tmp_path / "guiderails.yml"
-    config_file.write_text("""
+    config_file.write_text(
+        """
 verbosity: verbose
 show_commands: false
 show_expected: false
 show_timestamps: true
-""")
+"""
+    )
 
     # Change to directory with config file
     original_dir = os.getcwd()
     try:
         os.chdir(tmp_path)
         config = OutputConfig._load_config_file()
-        
+
         assert config is not None
         assert config.verbosity == VerbosityLevel.VERBOSE
         assert config.show_commands is False
@@ -213,33 +211,35 @@ def test_precedence_order(tmp_path, monkeypatch):
     """Test full precedence order: CLI > env > config file > defaults."""
     # Set up config file
     config_file = tmp_path / "guiderails.yml"
-    config_file.write_text("""
+    config_file.write_text(
+        """
 verbosity: normal
 show_commands: true
-""")
+"""
+    )
 
     original_dir = os.getcwd()
     try:
         os.chdir(tmp_path)
-        
+
         # Config file only
         config = OutputConfig.from_cli_and_env()
         assert config.verbosity == VerbosityLevel.NORMAL
         assert config.show_commands is True
-        
+
         # Config file + env var (env wins)
         monkeypatch.setenv("GUIDERAILS_VERBOSITY", "quiet")
         config = OutputConfig.from_cli_and_env()
         assert config.verbosity == VerbosityLevel.QUIET
-        
+
         # Config file + env var + CLI (CLI wins)
         config = OutputConfig.from_cli_and_env(verbosity="debug")
         assert config.verbosity == VerbosityLevel.DEBUG
-        
+
         # Toggle precedence
         monkeypatch.setenv("GUIDERAILS_SHOW_COMMANDS", "false")
         config = OutputConfig.from_cli_and_env(show_commands=True)
         assert config.show_commands is True
-        
+
     finally:
         os.chdir(original_dir)

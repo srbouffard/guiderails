@@ -147,7 +147,7 @@ class GuideRunner:
                 self._print_box_line(prompt_text, width)
                 console.print("╰" + "─" * (width - 2) + "╯")
                 console.print()
-            
+
             if not Confirm.ask("Execute?", default=True):
                 console.print()
                 if self.output_config.show_step_banners:
@@ -377,7 +377,7 @@ class GuideRunner:
             if isinstance(part, FileBlock):
                 file_block_num += 1
                 current_block += 1
-                
+
                 if self.output_config.show_step_banners:
                     self._print_box_line(
                         f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width
@@ -391,9 +391,11 @@ class GuideRunner:
                 if self.output_config.show_step_banners:
                     self._print_box_line("", width)
                     if success:
-                        self._print_box_line(f"[bold green]✓ SUCCESS[/bold green]: {message}", width)
+                        msg = f"[bold green]✓ SUCCESS[/bold green]: {message}"
+                        self._print_box_line(msg, width)
                     else:
-                        self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {message}", width)
+                        msg = f"[bold red]✗ FAILED[/bold red]: {message}"
+                        self._print_box_line(msg, width)
                         step_passed = False
                 else:
                     # Quiet mode
@@ -411,9 +413,10 @@ class GuideRunner:
             elif isinstance(part, CodeBlock):
                 code_block_num += 1
                 current_block += 1
-                
+
                 if self.output_config.show_step_banners:
-                    self._print_box_line(f"[bold cyan]Code Block {code_block_num}:[/bold cyan]", width)
+                    msg = f"[bold cyan]Code Block {code_block_num}:[/bold cyan]"
+                    self._print_box_line(msg, width)
                     self._print_box_line("", width)
                 elif self.output_config.show_commands:
                     # In quiet mode with show_commands, show the command
@@ -452,10 +455,11 @@ class GuideRunner:
                     captured = self.variables.get(part.out_var)
                     if self.output_config.show_step_banners:
                         self._print_box_line("", width)
-                        self._print_box_line(
-                            f"[dim]Captured to variable {part.out_var}: {len(captured)} chars[/dim]",
-                            width,
+                        msg = (
+                            f"[dim]Captured to variable {part.out_var}: "
+                            f"{len(captured)} chars[/dim]"
                         )
+                        self._print_box_line(msg, width)
                     else:
                         console.print(f"[dim]→ {part.out_var}[/dim]")
 
@@ -480,16 +484,17 @@ class GuideRunner:
                             f"[bold red]✗ FAILED[/bold red]: {validation_message}", width
                         )
                         if part.continue_on_error:
-                            self._print_box_line(
-                                "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",
-                                width,
+                            msg = (
+                                "[yellow]Continuing despite failure "
+                                "(continue-on-error=true)[/yellow]"
                             )
+                            self._print_box_line(msg, width)
                         else:
                             step_passed = False
                 else:
                     # Quiet mode - show pass/fail
                     if validation_passed:
-                        console.print(f"[bold green]✓ PASSED[/bold green]")
+                        console.print("[bold green]✓ PASSED[/bold green]")
                     else:
                         console.print(f"[bold red]✗ FAILED[/bold red]: {validation_message}")
                         if part.continue_on_error:
@@ -716,7 +721,7 @@ def exec(
 
     # Default to guided if neither specified
     is_guided = guided or not ci
-    
+
     # Create output configuration from CLI args and environment
     output_config = OutputConfig.from_cli_and_env(
         verbosity=verbosity,
