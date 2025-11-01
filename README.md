@@ -215,10 +215,35 @@ Execute a tutorial:
 guiderun exec [OPTIONS] TUTORIAL
 ```
 
-**Options:**
+**Basic Options:**
 - `--guided`: Run in interactive mode (shows each step, prompts for execution)
-- `--ci`: Run in CI mode (non-interactive, fails fast)
+- `--ci`: Run in CI mode (non-interactive, fails fast, defaults to quiet output)
 - `--working-dir, -w PATH`: Set base working directory for execution
+
+**Verbosity Options:**
+- `--verbosity LEVEL`: Set verbosity level (`quiet`, `normal`, `verbose`, `debug`)
+- `--quiet, -q`: Quiet mode (minimal output, alias for `--verbosity=quiet`)
+- `--verbose, -v`: Increase verbosity (`-v` for verbose, `-vv` or `-vvv` for debug)
+- `--debug`: Debug mode (maximum verbosity, alias for `--verbosity=debug`)
+
+**Output Toggle Options:**
+- `--show-commands / --no-show-commands`: Show/hide commands being executed
+- `--show-substituted / --no-show-substituted`: Show/hide variable substitution hints
+- `--show-expected / --no-show-expected`: Show/hide expected validation values
+- `--show-captured / --no-show-captured`: Show/hide captured variable information
+- `--timestamps / --no-timestamps`: Show/hide execution timestamps
+- `--step-banners / --no-step-banners`: Show/hide step banners and boxes
+- `--previews / --no-previews`: Show/hide command previews and extra details
+
+**Output Format:**
+- `--output FORMAT`: Output format (`text` or `jsonl`)
+
+**Verbosity Level Behaviors:**
+
+- **quiet**: Shows only step titles, commands (if `--show-commands`), command output, and PASS/FAIL status. Minimal decoration.
+- **normal** (default): Adds step banners, content boxes, and basic execution results.
+- **verbose**: Adds command previews, substitution details, timing information, and working directory.
+- **debug**: Adds internal diagnostics, parser events, and variable table state.
 
 **Tutorial Sources:**
 - Local file: `./tutorial.md`
@@ -232,9 +257,19 @@ Run locally with interaction:
 guiderun exec --guided examples/getting-started.md
 ```
 
-Validate in CI:
+Validate in CI (defaults to quiet output):
 ```bash
 guiderun exec --ci examples/getting-started.md
+```
+
+Run with verbose output:
+```bash
+guiderun exec --ci --verbose examples/getting-started.md
+```
+
+Run in quiet mode with no command display:
+```bash
+guiderun exec --ci --quiet --no-show-commands examples/getting-started.md
 ```
 
 Run from URL:
@@ -251,6 +286,51 @@ The HTML page should include:
 ```html
 <meta name="guiderails:source" content="https://example.com/raw/tutorial.md">
 ```
+
+### Configuration
+
+GuideRails supports configuration through multiple sources with the following precedence:
+
+**1. Command-line flags** (highest priority)  
+**2. Environment variables**  
+**3. Configuration file** (`guiderails.yml`)  
+**4. Built-in defaults** (lowest priority)
+
+#### Environment Variables
+
+```bash
+# Verbosity level
+export GUIDERAILS_VERBOSITY=quiet|normal|verbose|debug
+
+# Output toggles
+export GUIDERAILS_SHOW_COMMANDS=true|false
+export GUIDERAILS_SHOW_SUBSTITUTED=true|false
+export GUIDERAILS_SHOW_EXPECTED=true|false
+export GUIDERAILS_SHOW_CAPTURED=true|false
+export GUIDERAILS_TIMESTAMPS=true|false
+export GUIDERAILS_STEP_BANNERS=true|false
+export GUIDERAILS_PREVIEWS=true|false
+```
+
+#### Configuration File
+
+Create a `guiderails.yml` file in your project root:
+
+```yaml
+# Verbosity level (quiet, normal, verbose, debug)
+verbosity: normal
+
+# Output toggles
+show_commands: true
+show_substituted: false
+show_expected: true
+show_captured: true
+show_timestamps: false
+show_step_banners: true
+show_previews: false
+```
+
+GuideRails will search for `guiderails.yml` in the current directory and parent directories.
 
 ## CI Integration
 
