@@ -11,7 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
-from .config import OutputConfig
+from .config import OutputConfig, VerbosityLevel
 from .executor import Executor, VariableStore
 from .parser import CodeBlock, FileBlock, MarkdownParser, Step, Tutorial
 
@@ -744,7 +744,7 @@ def exec(
 
     try:
         # Show loading message only in normal+ verbosity
-        if output_config.should_show_at_level(output_config.verbosity):
+        if output_config.should_show_at_level(VerbosityLevel.NORMAL):
             console.print(f"[cyan]Loading tutorial from: {tutorial}[/cyan]")
 
         if tutorial.startswith("http://") or tutorial.startswith("https://"):
@@ -754,7 +754,7 @@ def exec(
             # Local file
             parsed_tutorial = parser.parse_file(tutorial)
 
-        if output_config.should_show_at_level(output_config.verbosity):
+        if output_config.should_show_at_level(VerbosityLevel.NORMAL):
             console.print(f"[green]✓ Loaded: {parsed_tutorial.title}[/green]")
 
     except FileNotFoundError as e:
