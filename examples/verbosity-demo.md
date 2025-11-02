@@ -55,35 +55,35 @@ Run this tutorial with different verbosity settings to see the differences:
 ### Quiet Mode
 Minimal output, shows only essentials:
 ```bash
-guiderun exec --ci --quiet examples/verbosity-demo.md
+guiderails exec --ci --quiet examples/verbosity-demo.md
 ```
 
 ### Normal Mode (Default)
 Balanced output with step banners and content:
 ```bash
-guiderun exec --ci --verbosity=normal examples/verbosity-demo.md
+guiderails exec --ci --verbosity=normal examples/verbosity-demo.md
 ```
 
 ### Verbose Mode
 Detailed output with previews and timing:
 ```bash
-guiderun exec --ci --verbose examples/verbosity-demo.md
+guiderails exec --ci --verbose examples/verbosity-demo.md
 ```
 
 ### Debug Mode
 Maximum detail with internal diagnostics:
 ```bash
-guiderun exec --ci --debug examples/verbosity-demo.md
+guiderails exec --ci --debug examples/verbosity-demo.md
 ```
 
 ### Custom Toggle Examples
 
 Quiet mode without showing commands:
 ```bash
-guiderun exec --ci --quiet --no-show-commands examples/verbosity-demo.md
+guiderails exec --ci --quiet --no-show-commands examples/verbosity-demo.md
 ```
 
 Normal mode with expected values shown:
 ```bash
-guiderun exec --ci --show-expected examples/verbosity-demo.md
+guiderails exec --ci --show-expected examples/verbosity-demo.md
 ```

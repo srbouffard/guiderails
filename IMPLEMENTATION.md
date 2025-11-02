@@ -25,8 +25,8 @@ This implementation provides the complete MVP for the GuideRails CLI tool as spe
 - Exact output matching (`data-mode=exact`)
 
 ✅ **CLI Interface** (`src/guiderails/cli.py`)
-- `guiderun exec --guided <tutorial>`: Interactive mode
-- `guiderun exec --ci <tutorial>`: Non-interactive CI mode
+- `guiderails exec --guided <tutorial>`: Interactive mode
+- `guiderails exec --ci <tutorial>`: Non-interactive CI mode
 - `--working-dir` option for custom base directory
 - Rich terminal UI with syntax highlighting
 
@@ -106,17 +106,17 @@ All 26 tests pass:
 
 ### Interactive Mode
 ```bash
-guiderun exec --guided examples/getting-started.md
+guiderails exec --guided examples/getting-started.md
 ```
 
 ### CI Mode
 ```bash
-guiderun exec --ci examples/getting-started.md
+guiderails exec --ci examples/getting-started.md
 ```
 
 ### From URL
 ```bash
-guiderun exec --ci https://example.com/tutorial.md
+guiderails exec --ci https://example.com/tutorial.md
 ```
 
 ## Future Enhancements (Not in Scope)
