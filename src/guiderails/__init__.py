@@ -1,6 +1,6 @@
 """GuideRails: Tutorials-as-Code framework for executable Markdown tutorials."""
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("guiderails")
