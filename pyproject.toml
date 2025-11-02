@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-guiderun = "guiderails.cli:main"
+guiderails = "guiderails.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

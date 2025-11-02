@@ -21,6 +21,8 @@ GuideRails enables you to write interactive, executable tutorials in Markdown th
 - **Developer-friendly**: Simple attribute syntax for marking executable steps
 - **Safe by default**: Sandboxed file operations within working directory
 
+> **Note**: As of version 0.2.0, the CLI tool has been renamed from `guiderun` to `guiderails` for consistency with the project name. Please update your scripts and workflows accordingly. See [CHANGELOG.md](CHANGELOG.md) for details.
+
 ## Installation
 
 ```bash
@@ -64,13 +66,13 @@ ls -d /tmp/test
 ### 2. Run Interactively
 
 ```bash
-guiderun exec --guided tutorial.md
+guiderails exec --guided tutorial.md
 ```
 
 ### 3. Validate in CI
 
 ```bash
-guiderun exec --ci tutorial.md
+guiderails exec --ci tutorial.md
 ```
 
 ## Authoring Convention
@@ -207,12 +209,12 @@ long-running-command
 
 ### Commands
 
-#### `guiderun exec`
+#### `guiderails exec`
 
 Execute a tutorial:
 
 ```bash
-guiderun exec [OPTIONS] TUTORIAL
+guiderails exec [OPTIONS] TUTORIAL
 ```
 
 **Basic Options:**
@@ -254,32 +256,32 @@ guiderun exec [OPTIONS] TUTORIAL
 
 Run locally with interaction:
 ```bash
-guiderun exec --guided examples/getting-started.md
+guiderails exec --guided examples/getting-started.md
 ```
 
 Validate in CI (defaults to quiet output):
 ```bash
-guiderun exec --ci examples/getting-started.md
+guiderails exec --ci examples/getting-started.md
 ```
 
 Run with verbose output:
 ```bash
-guiderun exec --ci --verbose examples/getting-started.md
+guiderails exec --ci --verbose examples/getting-started.md
 ```
 
 Run in quiet mode with no command display:
 ```bash
-guiderun exec --ci --quiet --no-show-commands examples/getting-started.md
+guiderails exec --ci --quiet --no-show-commands examples/getting-started.md
 ```
 
 Run from URL:
 ```bash
-guiderun exec --guided https://example.com/tutorial.md
+guiderails exec --guided https://example.com/tutorial.md
 ```
 
 From HTML with meta tag:
 ```bash
-guiderun exec --guided https://example.com/tutorial.html
+guiderails exec --guided https://example.com/tutorial.html
 ```
 
 The HTML page should include:
@@ -364,7 +366,7 @@ jobs:
     
     - name: Validate tutorials
       run: |
-        guiderun exec --ci docs/tutorial.md
+        guiderails exec --ci docs/tutorial.md
 ```
 
 ## Examples
