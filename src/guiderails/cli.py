@@ -11,6 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
+from . import __version__
 from .config import OutputConfig, VerbosityLevel
 from .executor import Executor, VariableStore
 from .parser import CodeBlock, FileBlock, MarkdownParser, Step, Tutorial
@@ -647,7 +648,7 @@ class GuideRunner:
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=__version__)
 def cli():
     """GuideRails: Tutorials-as-Code framework."""
     pass

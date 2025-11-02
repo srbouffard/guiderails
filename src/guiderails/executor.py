@@ -5,7 +5,7 @@ import re
 import stat
 import subprocess
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 from .parser import CodeBlock, FileBlock
 
@@ -13,13 +13,13 @@ from .parser import CodeBlock, FileBlock
 class VariableStore:
     """Stores and manages variables for substitution."""
 
-    def __init__(self, initial_vars: Optional[Dict[str, str]] = None):
+    def __init__(self, initial_vars: Optional[dict[str, str]] = None):
         """Initialize variable store.
 
         Args:
             initial_vars: Optional initial variables (e.g., from CLI --var)
         """
-        self.variables: Dict[str, str] = initial_vars or {}
+        self.variables: dict[str, str] = initial_vars or {}
 
     def set(self, name: str, value: str):
         """Set a variable value."""
@@ -54,7 +54,7 @@ class PathSandbox:
     @staticmethod
     def validate_path(
         path: str, base_dir: str, allow_outside: bool = False
-    ) -> Tuple[bool, str, str]:
+    ) -> tuple[bool, str, str]:
         """Validate a file path for safety.
 
         Args:
@@ -110,7 +110,7 @@ class Validator:
     """Validates command output against expected results."""
 
     @staticmethod
-    def validate(result: ExecutionResult, code_block: CodeBlock) -> Tuple[bool, str]:
+    def validate(result: ExecutionResult, code_block: CodeBlock) -> tuple[bool, str]:
         """Validate execution result against code block expectations.
 
         Returns:
@@ -185,7 +185,7 @@ class Executor:
         self.variables = variable_store or VariableStore()
         self.allow_outside = allow_outside
 
-    def write_file(self, file_block: FileBlock) -> Tuple[bool, str]:
+    def write_file(self, file_block: FileBlock) -> tuple[bool, str]:
         """Write a file from a FileBlock.
 
         Args:
@@ -330,7 +330,7 @@ class Executor:
                 error_message=f"Execution error: {str(e)}",
             )
 
-    def execute_and_validate(self, code_block: CodeBlock) -> Tuple[ExecutionResult, bool, str]:
+    def execute_and_validate(self, code_block: CodeBlock) -> tuple[ExecutionResult, bool, str]:
         """Execute a code block and validate its output.
 
         Args:
