@@ -11,6 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
+from .config import OutputConfig, VerbosityLevel
 from .executor import Executor, VariableStore
 from .parser import CodeBlock, FileBlock, MarkdownParser, Step, Tutorial
 
@@ -26,6 +27,7 @@ class GuideRunner:
         working_dir: Optional[str] = None,
         guided: bool = True,
         variables: Optional[VariableStore] = None,
+        output_config: Optional[OutputConfig] = None,
     ):
         """Initialize the runner.
 
@@ -34,6 +36,7 @@ class GuideRunner:
             working_dir: Base working directory for execution
             guided: Whether to run in guided (interactive) mode
             variables: Variable store for substitution
+            output_config: Output configuration for verbosity and toggles
         """
         self.tutorial = tutorial
         self.working_dir = working_dir or os.getcwd()
@@ -41,6 +44,7 @@ class GuideRunner:
         self.variables = variables or VariableStore()
         self.executor = Executor(base_working_dir=self.working_dir, variable_store=self.variables)
         self.failed_steps = []
+        self.output_config = output_config or OutputConfig()
 
     def run(self) -> bool:
         """Run the tutorial.
@@ -48,18 +52,19 @@ class GuideRunner:
         Returns:
             True if all steps passed, False otherwise
         """
-        # Display tutorial header
-        console.print()
-        console.print(
-            Panel.fit(
-                f"[bold cyan]{self.tutorial.title}[/bold cyan]\n"
-                f"[dim]Source: {self.tutorial.source}[/dim]\n"
-                f"[dim]Steps: {len(self.tutorial.steps)}[/dim]",
-                title="GuideRails Tutorial",
-                border_style="cyan",
+        # Display tutorial header (skip in quiet mode)
+        if self.output_config.show_step_banners:
+            console.print()
+            console.print(
+                Panel.fit(
+                    f"[bold cyan]{self.tutorial.title}[/bold cyan]\n"
+                    f"[dim]Source: {self.tutorial.source}[/dim]\n"
+                    f"[dim]Steps: {len(self.tutorial.steps)}[/dim]",
+                    title="GuideRails Tutorial",
+                    border_style="cyan",
+                )
             )
-        )
-        console.print()
+            console.print()
 
         if not self.tutorial.steps:
             console.print("[yellow]Warning: No steps found in tutorial[/yellow]")
@@ -96,51 +101,63 @@ class GuideRunner:
         # Get terminal width for full-width boxes
         width = console.width
 
-        # Display step header with clear separation
-        console.print()
-        console.print("─" * width)
-        console.print()
-        step_header = f"Step {step_num}/{len(self.tutorial.steps)}: {step.title}"
-        console.print(Panel.fit(f"[bold blue]{step_header}[/bold blue]", border_style="blue"))
+        # Display step header with clear separation (always show, even in quiet)
+        if self.output_config.show_step_banners:
+            console.print()
+            console.print("─" * width)
+            console.print()
+            step_header = f"Step {step_num}/{len(self.tutorial.steps)}: {step.title}"
+            console.print(Panel.fit(f"[bold blue]{step_header}[/bold blue]", border_style="blue"))
 
-        if step.step_id:
-            console.print(f"[dim]ID: {step.step_id}[/dim]")
+            if step.step_id:
+                console.print(f"[dim]ID: {step.step_id}[/dim]")
+        else:
+            # In quiet mode, just show step title
+            console.print()
+            step_header = f"Step {step_num}/{len(self.tutorial.steps)}: {step.title}"
+            console.print(f"[bold blue]{step_header}[/bold blue]")
 
         # Check if step has executable blocks (code or file)
         has_blocks = len(step.code_blocks) > 0 or len(step.file_blocks) > 0
         if not has_blocks:
-            console.print()
-            console.print("[dim]No executable code blocks in this step[/dim]")
+            if self.output_config.show_step_banners:
+                console.print()
+                console.print("[dim]No executable code blocks in this step[/dim]")
             return True
 
-        # Display step content with inline code blocks in a box
-        console.print()
-        title = "[bold green]Step Content[/bold green]"
-        # Account for "╭─ " prefix and " ╮" suffix when calculating dash count
-        title_len = len("Step Content") + 3  # " " on each side + "─"
-        console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
-        self._display_step_content_with_blocks(step)
-        console.print("╰" + "─" * (width - 2) + "╯")
+        # Display step content with inline code blocks in a box (skip in quiet mode)
+        if self.output_config.show_step_banners:
+            console.print()
+            title = "[bold green]Step Content[/bold green]"
+            # Account for "╭─ " prefix and " ╮" suffix when calculating dash count
+            title_len = len("Step Content") + 3  # " " on each side + "─"
+            console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
+            self._display_step_content_with_blocks(step)
+            console.print("╰" + "─" * (width - 2) + "╯")
 
         # In guided mode, ask for confirmation
         if self.guided:
             console.print()
-            title = "[bold cyan]Confirmation[/bold cyan]"
-            title_len = len("Confirmation") + 3
-            console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
-            total_blocks = len(step.code_blocks) + len(step.file_blocks)
-            prompt_text = f"[cyan]▶ Execute the above {total_blocks} block(s)?[/cyan]"
-            self._print_box_line(prompt_text, width)
-            console.print("╰" + "─" * (width - 2) + "╯")
-            console.print()
-
-            if not Confirm.ask("", default=True):
-                console.print()
-                title = "[bold yellow]Status[/bold yellow]"
-                title_len = len("Status") + 3
+            if self.output_config.show_step_banners:
+                title = "[bold cyan]Confirmation[/bold cyan]"
+                title_len = len("Confirmation") + 3
                 console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
-                self._print_box_line("[yellow]⊗ Skipped by user[/yellow]", width)
+                total_blocks = len(step.code_blocks) + len(step.file_blocks)
+                prompt_text = f"[cyan]▶ Execute the above {total_blocks} block(s)?[/cyan]"
+                self._print_box_line(prompt_text, width)
                 console.print("╰" + "─" * (width - 2) + "╯")
+                console.print()
+
+            if not Confirm.ask("Execute?", default=True):
+                console.print()
+                if self.output_config.show_step_banners:
+                    title = "[bold yellow]Status[/bold yellow]"
+                    title_len = len("Status") + 3
+                    console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
+                    self._print_box_line("[yellow]⊗ Skipped by user[/yellow]", width)
+                    console.print("╰" + "─" * (width - 2) + "╯")
+                else:
+                    console.print("[yellow]⊗ Skipped by user[/yellow]")
                 console.print()
                 return True
 
@@ -235,36 +252,53 @@ class GuideRunner:
         self._print_box_line("", width)
 
         # Display code with simple border - adjust inner width to terminal
-        inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
-        self._print_box_line("┌" + "─" * inner_width + "┐", width)
+        if self.output_config.show_commands:
+            inner_width = width - 8  # Account for "│  ┌" prefix and "┐ │" suffix
+            self._print_box_line("┌" + "─" * inner_width + "┐", width)
 
-        # Always display original code to match tutorial text
-        for line in code_block.code.split("\n"):
-            # Pad code line to inner width
-            plain_line = line
-            line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
-            padded_code = f"│ [cyan]{line}[/cyan]{' ' * max(0, line_padding)} │"
-            self._print_box_line(padded_code, width)
-        self._print_box_line("└" + "─" * inner_width + "┘", width)
+            # Always display original code to match tutorial text
+            for line in code_block.code.split("\n"):
+                # Pad code line to inner width
+                plain_line = line
+                line_padding = inner_width - len(plain_line) - 2  # -2 for "│ "
+                padded_code = f"│ [cyan]{line}[/cyan]{' ' * max(0, line_padding)} │"
+                self._print_box_line(padded_code, width)
+            self._print_box_line("└" + "─" * inner_width + "┘", width)
 
-        if has_substitution:
+        if has_substitution and self.output_config.show_substituted:
             self._print_box_line(
                 "[dim](variable substitution will be applied at runtime)[/dim]", width
             )
+            # In verbose mode, show the substituted command
+            if self.output_config.show_previews:
+                self._print_box_line("[dim]After substitution:[/dim]", width)
+                inner_width = width - 8
+                self._print_box_line("┌" + "─" * inner_width + "┐", width)
+                for line in substituted_code.split("\n"):
+                    plain_line = line
+                    line_padding = inner_width - len(plain_line) - 2
+                    padded_code = f"│ [yellow]{line}[/yellow]{' ' * max(0, line_padding)} │"
+                    self._print_box_line(padded_code, width)
+                self._print_box_line("└" + "─" * inner_width + "┘", width)
 
-        # Display execution parameters compactly
-        params = [f"mode={code_block.mode}", f"expect={code_block.expected}"]
-        if code_block.timeout != 30:
-            params.append(f"timeout={code_block.timeout}s")
-        if code_block.working_dir:
-            params.append(f"workdir={code_block.working_dir}")
-        if code_block.out_var:
-            params.append(f"out-var={code_block.out_var}")
-        if code_block.out_file:
-            params.append(f"out-file={code_block.out_file}")
-        if code_block.code_var:
-            params.append(f"code-var={code_block.code_var}")
-        self._print_box_line(f"[dim][{', '.join(params)}][/dim]", width)
+        # Display execution parameters compactly (in verbose+ mode or if show_expected is on)
+        if self.output_config.show_expected or self.output_config.show_previews:
+            params = []
+            if self.output_config.show_expected:
+                params.append(f"mode={code_block.mode}")
+                params.append(f"expect={code_block.expected}")
+            if code_block.timeout != 30:
+                params.append(f"timeout={code_block.timeout}s")
+            if code_block.working_dir and self.output_config.show_previews:
+                params.append(f"workdir={code_block.working_dir}")
+            if code_block.out_var:
+                params.append(f"out-var={code_block.out_var}")
+            if code_block.out_file:
+                params.append(f"out-file={code_block.out_file}")
+            if code_block.code_var:
+                params.append(f"code-var={code_block.code_var}")
+            if params:
+                self._print_box_line(f"[dim][{', '.join(params)}][/dim]", width)
         self._print_box_line("", width)
 
     def _display_file_block_inline(self, block_num: int, file_block: FileBlock):
@@ -325,9 +359,13 @@ class GuideRunner:
         width = console.width
         step_passed = True
 
-        title = "[bold green]Execution Results[/bold green]"
-        title_len = len("Execution Results") + 3
-        console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
+        # In quiet mode, simpler output
+        if not self.output_config.show_step_banners:
+            console.print()
+        else:
+            title = "[bold green]Execution Results[/bold green]"
+            title_len = len("Execution Results") + 3
+            console.print("╭─ " + title + " " + "─" * (width - title_len - 3) + "╮")
 
         # Execute blocks in the order they appear in content_parts
         file_block_num = 0
@@ -339,23 +377,35 @@ class GuideRunner:
             if isinstance(part, FileBlock):
                 file_block_num += 1
                 current_block += 1
-                self._print_box_line(
-                    f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width
-                )
-                self._print_box_line("", width)
+
+                if self.output_config.show_step_banners:
+                    self._print_box_line(
+                        f"[bold magenta]File Block {file_block_num}:[/bold magenta]", width
+                    )
+                    self._print_box_line("", width)
 
                 # Write file
                 success, message = self.executor.write_file(part)
 
                 # Display result
-                self._print_box_line("", width)
-                if success:
-                    self._print_box_line(f"[bold green]✓ SUCCESS[/bold green]: {message}", width)
+                if self.output_config.show_step_banners:
+                    self._print_box_line("", width)
+                    if success:
+                        msg = f"[bold green]✓ SUCCESS[/bold green]: {message}"
+                        self._print_box_line(msg, width)
+                    else:
+                        msg = f"[bold red]✗ FAILED[/bold red]: {message}"
+                        self._print_box_line(msg, width)
+                        step_passed = False
                 else:
-                    self._print_box_line(f"[bold red]✗ FAILED[/bold red]: {message}", width)
-                    step_passed = False
+                    # Quiet mode
+                    if success:
+                        console.print(f"[bold green]✓[/bold green] File: {part.path}")
+                    else:
+                        console.print(f"[bold red]✗ FAILED[/bold red]: {message}")
+                        step_passed = False
 
-                if current_block < total_blocks:
+                if self.output_config.show_step_banners and current_block < total_blocks:
                     self._print_box_line("", width)
                     self._print_box_line("─" * (width - 5), width)
                     self._print_box_line("", width)
@@ -363,8 +413,14 @@ class GuideRunner:
             elif isinstance(part, CodeBlock):
                 code_block_num += 1
                 current_block += 1
-                self._print_box_line(f"[bold cyan]Code Block {code_block_num}:[/bold cyan]", width)
-                self._print_box_line("", width)
+
+                if self.output_config.show_step_banners:
+                    msg = f"[bold cyan]Code Block {code_block_num}:[/bold cyan]"
+                    self._print_box_line(msg, width)
+                    self._print_box_line("", width)
+                elif self.output_config.show_commands:
+                    # In quiet mode with show_commands, show the command
+                    console.print(f"[cyan]$[/cyan] {part.code}")
 
                 # Execute
                 result, validation_passed, validation_message = self.executor.execute_and_validate(
@@ -373,67 +429,96 @@ class GuideRunner:
 
                 # Display output
                 if result.stdout:
-                    self._print_box_line("[bold]Output:[/bold]", width)
-                    for line in result.stdout.split("\n"):
-                        if line:
-                            # Add extra indent for output
-                            self._print_box_line(f"  {line}", width)
+                    if self.output_config.show_step_banners:
+                        self._print_box_line("[bold]Output:[/bold]", width)
+                        for line in result.stdout.split("\n"):
+                            if line:
+                                # Add extra indent for output
+                                self._print_box_line(f"  {line}", width)
+                    else:
+                        # Quiet mode - just show output directly
+                        console.print(result.stdout.rstrip())
 
                 if result.stderr:
-                    self._print_box_line("", width)
-                    self._print_box_line("[bold yellow]Error Output:[/bold yellow]", width)
-                    for line in result.stderr.split("\n"):
-                        if line:
-                            self._print_box_line(f"  {line}", width)
+                    if self.output_config.show_step_banners:
+                        self._print_box_line("", width)
+                        self._print_box_line("[bold yellow]Error Output:[/bold yellow]", width)
+                        for line in result.stderr.split("\n"):
+                            if line:
+                                self._print_box_line(f"  {line}", width)
+                    else:
+                        # Quiet mode - show stderr
+                        console.print(f"[yellow]{result.stderr.rstrip()}[/yellow]")
 
                 # Display capture info if variables were set
-                if part.out_var:
+                if part.out_var and self.output_config.show_captured:
                     captured = self.variables.get(part.out_var)
-                    self._print_box_line("", width)
-                    self._print_box_line(
-                        f"[dim]Captured to variable {part.out_var}: {len(captured)} chars[/dim]",
-                        width,
-                    )
+                    if self.output_config.show_step_banners:
+                        self._print_box_line("", width)
+                        msg = (
+                            f"[dim]Captured to variable {part.out_var}: "
+                            f"{len(captured)} chars[/dim]"
+                        )
+                        self._print_box_line(msg, width)
+                    else:
+                        console.print(f"[dim]→ {part.out_var}[/dim]")
 
-                if part.code_var:
+                if part.code_var and self.output_config.show_captured:
                     exit_code = self.variables.get(part.code_var)
-                    self._print_box_line(
-                        f"[dim]Captured exit code to {part.code_var}: {exit_code}[/dim]", width
-                    )
-
-                # Display validation result
-                self._print_box_line("", width)
-                if validation_passed:
-                    self._print_box_line(
-                        f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
-                    )
-                else:
-                    self._print_box_line(
-                        f"[bold red]✗ FAILED[/bold red]: {validation_message}", width
-                    )
-                    if part.continue_on_error:
+                    if self.output_config.show_step_banners:
                         self._print_box_line(
-                            "[yellow]Continuing despite failure (continue-on-error=true)[/yellow]",
-                            width,
+                            f"[dim]Captured exit code to {part.code_var}: {exit_code}[/dim]", width
                         )
                     else:
-                        step_passed = False
+                        console.print(f"[dim]→ {part.code_var}={exit_code}[/dim]")
+
+                # Display validation result (always show failures)
+                if self.output_config.show_step_banners:
+                    self._print_box_line("", width)
+                    if validation_passed:
+                        self._print_box_line(
+                            f"[bold green]✓ PASSED[/bold green]: {validation_message}", width
+                        )
+                    else:
+                        self._print_box_line(
+                            f"[bold red]✗ FAILED[/bold red]: {validation_message}", width
+                        )
+                        if part.continue_on_error:
+                            msg = (
+                                "[yellow]Continuing despite failure "
+                                "(continue-on-error=true)[/yellow]"
+                            )
+                            self._print_box_line(msg, width)
+                        else:
+                            step_passed = False
+                else:
+                    # Quiet mode - show pass/fail
+                    if validation_passed:
+                        console.print("[bold green]✓ PASSED[/bold green]")
+                    else:
+                        console.print(f"[bold red]✗ FAILED[/bold red]: {validation_message}")
+                        if part.continue_on_error:
+                            console.print("[yellow]Continuing despite failure[/yellow]")
+                        else:
+                            step_passed = False
 
                 if not validation_passed and not part.continue_on_error:
                     break
 
-                if current_block < total_blocks:
+                if self.output_config.show_step_banners and current_block < total_blocks:
                     self._print_box_line("", width)
                     self._print_box_line("─" * (width - 5), width)
                     self._print_box_line("", width)
 
-        self._print_box_line("", width)
-
-        # Update border color based on results
-        if not step_passed:
-            console.print("╰" + "─" * (width - 2) + "╯ [red]✗ Failed[/red]")
+        if self.output_config.show_step_banners:
+            self._print_box_line("", width)
+            # Update border color based on results
+            if not step_passed:
+                console.print("╰" + "─" * (width - 2) + "╯ [red]✗ Failed[/red]")
+            else:
+                console.print("╰" + "─" * (width - 2) + "╯ [green]✓ Passed[/green]")
         else:
-            console.print("╰" + "─" * (width - 2) + "╯ [green]✓ Passed[/green]")
+            console.print()
 
         return step_passed
 
@@ -573,7 +658,55 @@ def cli():
 @click.option("--guided", is_flag=True, help="Run in interactive/guided mode")
 @click.option("--ci", is_flag=True, help="Run in CI mode (non-interactive)")
 @click.option("--working-dir", "-w", type=click.Path(), help="Base working directory for execution")
-def exec(tutorial: str, guided: bool, ci: bool, working_dir: Optional[str]):
+# Verbosity options
+@click.option(
+    "--verbosity",
+    type=click.Choice(["quiet", "normal", "verbose", "debug"], case_sensitive=False),
+    help="Set verbosity level (quiet, normal, verbose, debug)",
+)
+@click.option("--quiet", "-q", is_flag=True, help="Quiet mode (alias for --verbosity=quiet)")
+@click.option("--verbose", "-v", count=True, help="Increase verbosity (-v, -vv, -vvv)")
+@click.option("--debug", is_flag=True, help="Debug mode (alias for --verbosity=debug)")
+# Output toggles
+@click.option("--show-commands/--no-show-commands", default=None, help="Show/hide commands")
+@click.option(
+    "--show-substituted/--no-show-substituted",
+    default=None,
+    help="Show/hide substituted commands",
+)
+@click.option("--show-expected/--no-show-expected", default=None, help="Show/hide expected values")
+@click.option("--show-captured/--no-show-captured", default=None, help="Show/hide captured output")
+@click.option("--timestamps/--no-timestamps", default=None, help="Show/hide timestamps")
+@click.option("--step-banners/--no-step-banners", default=None, help="Show/hide step banners")
+@click.option("--previews/--no-previews", default=None, help="Show/hide command previews")
+# Output format
+@click.option(
+    "--output",
+    type=click.Choice(["text", "jsonl"], case_sensitive=False),
+    default="text",
+    help="Output format (text or jsonl)",
+)
+def exec(
+    tutorial: str,
+    guided: bool,
+    ci: bool,
+    working_dir: Optional[str],
+    # Verbosity options
+    verbosity: Optional[str],
+    quiet: bool,
+    verbose: int,
+    debug: bool,
+    # Output toggles
+    show_commands: Optional[bool],
+    show_substituted: Optional[bool],
+    show_expected: Optional[bool],
+    show_captured: Optional[bool],
+    timestamps: Optional[bool],
+    step_banners: Optional[bool],
+    previews: Optional[bool],
+    # Output format
+    output: str,
+):
     """Execute a Markdown tutorial.
 
     TUTORIAL can be:
@@ -589,11 +722,30 @@ def exec(tutorial: str, guided: bool, ci: bool, working_dir: Optional[str]):
     # Default to guided if neither specified
     is_guided = guided or not ci
 
+    # Create output configuration from CLI args and environment
+    output_config = OutputConfig.from_cli_and_env(
+        verbosity=verbosity,
+        quiet=quiet,
+        verbose_count=verbose,
+        debug=debug,
+        is_ci=ci,
+        output_format=output,
+        show_commands=show_commands,
+        show_substituted=show_substituted,
+        show_expected=show_expected,
+        show_captured=show_captured,
+        show_timestamps=timestamps,
+        show_step_banners=step_banners,
+        show_previews=previews,
+    )
+
     # Parse tutorial
     parser = MarkdownParser()
 
     try:
-        console.print(f"[cyan]Loading tutorial from: {tutorial}[/cyan]")
+        # Show loading message only in normal+ verbosity
+        if output_config.should_show_at_level(VerbosityLevel.NORMAL):
+            console.print(f"[cyan]Loading tutorial from: {tutorial}[/cyan]")
 
         if tutorial.startswith("http://") or tutorial.startswith("https://"):
             # URL
@@ -602,7 +754,8 @@ def exec(tutorial: str, guided: bool, ci: bool, working_dir: Optional[str]):
             # Local file
             parsed_tutorial = parser.parse_file(tutorial)
 
-        console.print(f"[green]✓ Loaded: {parsed_tutorial.title}[/green]")
+        if output_config.should_show_at_level(VerbosityLevel.NORMAL):
+            console.print(f"[green]✓ Loaded: {parsed_tutorial.title}[/green]")
 
     except FileNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -612,7 +765,12 @@ def exec(tutorial: str, guided: bool, ci: bool, working_dir: Optional[str]):
         sys.exit(1)
 
     # Run tutorial
-    runner = GuideRunner(parsed_tutorial, working_dir=working_dir, guided=is_guided)
+    runner = GuideRunner(
+        parsed_tutorial,
+        working_dir=working_dir,
+        guided=is_guided,
+        output_config=output_config,
+    )
 
     success = runner.run()
 

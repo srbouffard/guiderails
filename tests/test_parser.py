@@ -1,7 +1,6 @@
 """Tests for the Markdown parser."""
 
-import pytest
-from guiderails.parser import MarkdownParser, Tutorial, Step, CodeBlock
+from guiderails.parser import MarkdownParser
 
 
 def test_parse_simple_tutorial():
