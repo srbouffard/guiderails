@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -48,10 +48,10 @@ class Step:
     title: str
     content: str
     step_id: Optional[str] = None
-    code_blocks: List[CodeBlock] = field(default_factory=list)
-    file_blocks: List[FileBlock] = field(default_factory=list)
+    code_blocks: list[CodeBlock] = field(default_factory=list)
+    file_blocks: list[FileBlock] = field(default_factory=list)
     line_number: int = 0
-    content_parts: List[Any] = field(
+    content_parts: list[Any] = field(
         default_factory=list
     )  # Ordered list of strings, CodeBlocks, and FileBlocks
 
@@ -62,7 +62,7 @@ class Tutorial:
 
     title: str
     source: str
-    steps: List[Step] = field(default_factory=list)
+    steps: list[Step] = field(default_factory=list)
 
 
 class MarkdownParser:
@@ -252,7 +252,7 @@ class MarkdownParser:
 
         return tutorial
 
-    def _parse_attributes(self, attr_string: str) -> Dict[str, Any]:
+    def _parse_attributes(self, attr_string: str) -> dict[str, Any]:
         """Parse attribute list like {.gr-step #step1 data-mode=exit}."""
         attrs = {"classes": [], "id": None, "data": {}}
 
@@ -275,7 +275,7 @@ class MarkdownParser:
         return attrs
 
     def _create_code_block(
-        self, code: str, language: str, attrs: Dict[str, Any], line_number: int
+        self, code: str, language: str, attrs: dict[str, Any], line_number: int
     ) -> CodeBlock:
         """Create a CodeBlock from parsed attributes."""
         data = attrs.get("data", {})
@@ -295,7 +295,7 @@ class MarkdownParser:
         )
 
     def _create_file_block(
-        self, code: str, language: str, attrs: Dict[str, Any], line_number: int
+        self, code: str, language: str, attrs: dict[str, Any], line_number: int
     ) -> FileBlock:
         """Create a FileBlock from parsed attributes."""
         data = attrs.get("data", {})
